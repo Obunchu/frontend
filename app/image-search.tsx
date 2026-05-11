@@ -179,8 +179,8 @@ export default function ImageSearchScreen() {
       </ScrollView>
 
       <View style={styles.bottomNav}>
-        <NavButton icon="home-outline" />
-        <NavButton icon="location-outline" active />
+        <NavButton icon="home-outline" active/>
+        <NavButton icon="location-outline" />
         <NavButton icon="heart-outline" />
         <NavButton icon="chatbubbles-outline" />
       </View>
