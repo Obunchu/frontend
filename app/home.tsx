@@ -1,12 +1,12 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useState } from "react";
+import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
+import { useState } from "react";
 import {
+  ActivityIndicator,
   Dimensions,
   FlatList,
   Image,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,54 +18,112 @@ const { width } = Dimensions.get("window");
 const CARD_WIDTH = width * 0.78;
 const CARD_SPACING = 18;
 
-const recommendedPlaces = [
+type OverseasPlace = {
+  id: string;
+  country: string;
+  city: string;
+  mood: string;
+  description: string;
+  backgroundColor: string;
+};
+
+const overseasPlaces: OverseasPlace[] = [
   {
     id: "1",
-    name: "달맞이근린공원",
-    address: "서울특별시 성동구 금호동4가 산27",
+    country: "일본",
+    city: "교토시, 카엔지",
+    mood: "고즈넉한",
+    description: "전통적이고 차분한 분위기",
+    backgroundColor: "#DDECF8",
   },
   {
     id: "2",
-    name: "한강공원",
-    address: "서울특별시 영등포구 여의동로 330",
+    country: "프랑스",
+    city: "파리",
+    mood: "낭만적인",
+    description: "감성적이고 로맨틱한 분위기",
+    backgroundColor: "#F6E3E8",
   },
   {
     id: "3",
-    name: "남산공원",
-    address: "서울특별시 중구 삼일대로 231",
+    country: "스위스",
+    city: "인터라켄",
+    mood: "청량한",
+    description: "맑고 자연적인 분위기",
+    backgroundColor: "#DFF1EA",
+  },
+  {
+    id: "4",
+    country: "인도네시아",
+    city: "발리",
+    mood: "이국적인",
+    description: "휴양지 느낌의 여유로운 분위기",
+    backgroundColor: "#F8E7C8",
   },
 ];
 
 export default function HomeScreen() {
-    const [activeIndex, setActiveIndex] = useState(0);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
-const handleCardScroll = (
-  event: NativeSyntheticEvent<NativeScrollEvent>
-) => {
-  const scrollX = event.nativeEvent.contentOffset.x;
-  const index = Math.round(scrollX / (CARD_WIDTH + CARD_SPACING));
-  setActiveIndex(index);
-};
+  const handleCardScroll = (event: any) => {
+    const scrollX = event.nativeEvent.contentOffset.x;
+    const index = Math.round(scrollX / (CARD_WIDTH + CARD_SPACING));
+    setActiveIndex(index);
+  };
+
+  const goToMoodResult = (mood: string) => {
+    router.push({
+      pathname: "/keyword-result",
+      params: {
+        mood,
+        region: "국내",
+      },
+    });
+  };
+
+  const pickImage = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permission.granted) {
+      alert("사진 접근 권한이 필요합니다.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      const imageUri = result.assets[0].uri;
+
+      setUploadedImage(imageUri);
+      setUploading(true);
+
+      setTimeout(() => {
+        setUploading(false);
+
+        router.push({
+          pathname: "/image-search",
+          params: {
+            imageUri,
+          },
+        });
+      }, 1500);
+    }
+  };
 
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* 상단 영역 */}
         <View style={styles.header}>
-          <View style={styles.logoArea}>
-            <Image
-              source={require("../assets/images/logo.png")}
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
-          </View>
-
-          <View style={styles.speechBubble}>
-            <Text style={styles.speechText}>
-              저녁에 날씨도 좋으니 산책할 만한 분위기에 맞는{"\n"}
-              전망 좋은 장소를 추천해드려요!
-            </Text>
-          </View>
+          <Image
+            source={require("../assets/images/logo.png")}
+            style={styles.logo}
+            resizeMode="contain"
+          />
 
           <View style={styles.profileArea}>
             <Ionicons name="person-circle-outline" size={48} color="#263A56" />
@@ -73,122 +131,146 @@ const handleCardScroll = (
           </View>
         </View>
 
-        {/* 추천 제목 */}
         <View style={styles.sectionTitleRow}>
-          <MaterialCommunityIcons name="cable-car" size={28} color="#2C2C2C" />
+          <MaterialCommunityIcons name="cable-car" size={27} color="#2C2C2C" />
           <Text style={styles.sectionTitle}>오늘의 분위기 여행지 추천</Text>
         </View>
 
-        {/* 장소 카드 */}
-<View style={styles.recommendWrapper}>
-  <FlatList
-    data={recommendedPlaces}
-    keyExtractor={(item) => item.id}
-    horizontal
-    showsHorizontalScrollIndicator={false}
-    snapToInterval={CARD_WIDTH + CARD_SPACING}
-    decelerationRate="fast"
-    bounces={false}
-    onScroll={handleCardScroll}
-    scrollEventThrottle={16}
-    contentContainerStyle={styles.cardList}
-    renderItem={({ item }) => (
-      <View style={styles.card}>
-        <View style={styles.imageBox}>
-          <Text style={styles.imagePlaceholder}>장소 이미지</Text>
+        <View style={styles.recommendWrapper}>
+          <FlatList
+            data={overseasPlaces}
+            keyExtractor={(item) => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            snapToInterval={CARD_WIDTH + CARD_SPACING}
+            decelerationRate="fast"
+            bounces={false}
+            onScroll={handleCardScroll}
+            scrollEventThrottle={16}
+            contentContainerStyle={styles.cardList}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.overseasCard}
+                onPress={() => goToMoodResult(item.mood)}
+              >
+                <View
+                  style={[
+                    styles.overseasImagePlaceholder,
+                    { backgroundColor: item.backgroundColor },
+                  ]}
+                >
+                  <Ionicons name="image-outline" size={78} color="#6FA8DC" />
+                  <Text style={styles.overseasMood}>#{item.mood}</Text>
+                  <Text style={styles.overseasDescription}>
+                    {item.description}
+                  </Text>
+                </View>
 
-          <TouchableOpacity style={styles.arrowButton}>
-            <Ionicons name="arrow-forward" size={34} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
+                <View style={styles.arrowButton}>
+                  <Ionicons name="arrow-forward" size={34} color="#FFFFFF" />
+                </View>
 
-        <View style={styles.placeInfoRow}>
-          <View style={styles.placeLeft}>
-            <View style={styles.placeNameRow}>
-              <Ionicons name="location-sharp" size={28} color="#F28C2E" />
-              <Text style={styles.placeName}>{item.name}</Text>
-            </View>
+                <View style={styles.overseasTextArea}>
+                  <Ionicons name="location-sharp" size={30} color="#F28C2E" />
+                  <Text style={styles.overseasTitle}>
+                    {item.country}, {item.city}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
+          />
 
-            <View style={styles.addressBox}>
-              <Text style={styles.addressText}>{item.address}</Text>
-            </View>
+          <View style={styles.dotsContainer}>
+            {overseasPlaces.map((_, index) => (
+              <View
+                key={index}
+                style={[styles.dot, activeIndex === index && styles.activeDot]}
+              />
+            ))}
           </View>
-
-          <TouchableOpacity>
-            <Ionicons name="heart-outline" size={42} color="#FFD75E" />
-          </TouchableOpacity>
-        </View>
-      </View>
-    )}
-  />
-
-  <View style={styles.dotsContainer}>
-    {recommendedPlaces.map((_, index) => (
-      <View
-        key={index}
-        style={[
-          styles.dot,
-          activeIndex === index && styles.activeDot,
-        ]}
-      />
-    ))}
-  </View>
-</View>
-
-        {/* 직접 검색하기 */}
-        <View style={styles.searchTitleRow}>
-          <Ionicons name="search" size={31} color="#2C2C2C" />
-          <Text style={styles.searchTitle}>직접 검색하기</Text>
         </View>
 
-        <SearchButton text="이미지로 검색하기"
-        onPress={() => router.push("/image-search")} />
-        <SearchButton text="키워드로 검색하기" 
-        onPress={() => router.push("/keyword-search")}/>
-        <SearchButton text="개인 맞춤 추천" />
+        <View style={styles.uploadTitleRow}>
+          <Text style={styles.uploadIcon}>📷</Text>
+          <Text style={styles.uploadTitle}>직접 이미지 업로드하기</Text>
+        </View>
+
+        <TouchableOpacity
+          style={styles.uploadBox}
+          onPress={pickImage}
+          disabled={uploading}
+          activeOpacity={0.85}
+        >
+          {uploadedImage ? (
+            <>
+              <Image source={{ uri: uploadedImage }} style={styles.uploadedImage} />
+
+              {uploading && (
+                <View style={styles.uploadOverlay}>
+                  <Text style={styles.uploadText}>
+                    업로드한 사진과 비슷한 감성 여행지 찾는 중
+                  </Text>
+
+                  <ActivityIndicator
+                    size="large"
+                    color="#F28C2E"
+                    style={styles.uploadLoading}
+                  />
+                </View>
+              )}
+            </>
+          ) : (
+            <View style={styles.uploadInner}>
+              <Ionicons name="image-outline" size={70} color="#F28C2E" />
+              <Text style={styles.uploadText}>사진을 선택해주세요</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+
+        <View style={styles.keywordTitleRow}>
+          <Ionicons name="search-outline" size={31} color="#2C2C2C" />
+          <Text style={styles.keywordTitle}>감성 키워드로 검색하기</Text>
+        </View>
+
+        <TouchableOpacity
+          style={styles.keywordButton}
+          onPress={() => router.push("/keyword-search")}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.keywordButtonText}>키워드로 검색하기</Text>
+          <Ionicons
+            name="arrow-forward-circle-outline"
+            size={28}
+            color="#F49A36"
+            style={styles.keywordButtonArrow}
+          />
+        </TouchableOpacity>
       </ScrollView>
 
-      {/* 하단 네비게이션 */}
       <View style={styles.bottomNav}>
-        <NavButton icon="home-outline" active />
-        <NavButton icon="location-outline" />
-        <NavButton icon="heart-outline" />
+        <NavButton icon="home-outline" active onPress={() => router.push("/home")} />
+        <NavButton icon="location-outline" onPress={() => router.push("/map")} />
+        <NavButton icon="heart-outline" onPress={() => router.push("/bookmark")} />
         <NavButton icon="chatbubbles-outline" />
       </View>
     </View>
   );
 }
 
-function SearchButton({
-  text,
-  onPress,
-}: {
-  text: string;
-  onPress?: () => void;
-}) {
-  return (
-    <TouchableOpacity style={styles.searchButton} onPress={onPress}>
-      <Text style={styles.searchButtonText}>{text}</Text>
-      <Ionicons
-        name="arrow-forward-circle-outline"
-        size={28}
-        color="#F49A36"
-        style={styles.searchButtonArrow}
-      />
-    </TouchableOpacity>
-  );
-}
-
 function NavButton({
   icon,
   active = false,
+  onPress,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   active?: boolean;
+  onPress?: () => void;
 }) {
   return (
     <TouchableOpacity
       style={[styles.navButton, active && styles.activeNavButton]}
+      onPress={onPress}
+      activeOpacity={0.85}
     >
       <Ionicons name={icon} size={36} color="#F28C2E" />
     </TouchableOpacity>
@@ -198,7 +280,7 @@ function NavButton({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FEFDDF",
+    backgroundColor: "#FFFDE8",
   },
 
   scrollContent: {
@@ -213,32 +295,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
 
-  logoArea: {
-    width: 95,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  logoImage: {
-    width: 95,
-    height: 75,
-  },
-
-  speechBubble: {
-    flex: 1,
-    backgroundColor: "#FFD96B",
-    borderRadius: 7,
-    paddingVertical: 14,
-    paddingHorizontal: 10,
-    marginHorizontal: 8,
-  },
-
-  speechText: {
-    fontSize: 11,
-    lineHeight: 20,
-    color: "#333333",
-    textAlign: "center",
-    fontWeight: "600",
+  logo: {
+    width: 105,
+    height: 78,
   },
 
   profileArea: {
@@ -256,7 +315,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 7,
-    marginTop: 30,
+    marginTop: 28,
     marginBottom: 14,
   },
 
@@ -267,134 +326,187 @@ const styles = StyleSheet.create({
   },
 
   recommendWrapper: {
-  marginHorizontal: -28,
-},
+    marginHorizontal: -28,
+  },
 
-cardList: {
-  paddingLeft: 28,
-  paddingRight: 80,
-  paddingVertical: 8,
-},
+  cardList: {
+    paddingLeft: 28,
+    paddingRight: 80,
+    paddingVertical: 8,
+  },
 
-card: {
-  width: CARD_WIDTH,
-  backgroundColor: "#FFFFF4",
-  borderRadius: 34,
-  padding: 18,
-  marginRight: CARD_SPACING,
-  shadowColor: "#000",
-  shadowOffset: { width: 0, height: 4 },
-  shadowOpacity: 0.18,
-  shadowRadius: 5,
-  elevation: 6,
-},
+  overseasCard: {
+    width: CARD_WIDTH,
+    height: 340,
+    borderRadius: 34,
+    backgroundColor: "#FFFFF4",
+    marginRight: CARD_SPACING,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 5,
+    elevation: 6,
+  },
 
-imageBox: {
-  width: "100%",
-  height: 230,
-  borderRadius: 24,
-  backgroundColor: "#DDE7EC",
-  alignItems: "center",
-  justifyContent: "center",
-  position: "relative",
-  overflow: "hidden",
-},
-
-imagePlaceholder: {
-  fontSize: 18,
-  fontWeight: "700",
-  color: "#5D6B73",
-},
-
-dotsContainer: {
-  flexDirection: "row",
-  justifyContent: "center",
-  alignItems: "center",
-  marginTop: 10,
-},
-
-dot: {
-  width: 8,
-  height: 8,
-  borderRadius: 4,
-  backgroundColor: "#E5DDB8",
-  marginHorizontal: 4,
-},
-
-activeDot: {
-  width: 22,
-  backgroundColor: "#FFD75E",
-},
-
-  arrowButton: {
-    position: "absolute",
-    top: 22,
-    right: 18,
-    width: 52,
-    height: 52,
+  overseasImagePlaceholder: {
+    flex: 1,
     borderRadius: 26,
-    backgroundColor: "rgba(80, 94, 104, 0.75)",
     alignItems: "center",
     justifyContent: "center",
   },
 
-  placeInfoRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginTop: 18,
+  overseasMood: {
+    marginTop: 10,
+    fontSize: 24,
+    fontWeight: "900",
+    color: "#263A56",
   },
 
-  placeLeft: {
-    flex: 1,
-  },
-
-  placeNameRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-
-  placeName: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#202020",
-    marginLeft: 6,
-  },
-
-  addressBox: {
-    backgroundColor: "#FFD75E",
-    borderRadius: 18,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    alignSelf: "flex-start",
-  },
-
-  addressText: {
-    fontSize: 13,
+  overseasDescription: {
+    marginTop: 6,
+    fontSize: 14,
     fontWeight: "700",
-    color: "#333333",
+    color: "#555555",
   },
 
-  searchTitleRow: {
+  arrowButton: {
+    position: "absolute",
+    top: 34,
+    right: 30,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "rgba(160, 160, 160, 0.72)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  overseasTextArea: {
+    position: "absolute",
+    left: 32,
+    bottom: 32,
+    right: 24,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginTop: 58,
-    marginBottom: 18,
   },
 
-  searchTitle: {
-    fontSize: 22,
+  overseasTitle: {
+    fontSize: 20,
+    fontWeight: "900",
+    color: "#FFFFFF",
+    marginLeft: 4,
+    textShadowColor: "rgba(0,0,0,0.45)",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 4,
+  },
+
+  dotsContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 8,
+  },
+
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#E5DDB8",
+    marginHorizontal: 4,
+  },
+
+  activeDot: {
+    width: 22,
+    backgroundColor: "#FFD75E",
+  },
+
+  uploadTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 26,
+    marginBottom: 14,
+  },
+
+  uploadIcon: {
+    fontSize: 23,
+    marginRight: 8,
+  },
+
+  uploadTitle: {
+    fontSize: 18,
     fontWeight: "800",
     color: "#2C2C2C",
   },
 
-  searchButton: {
+  uploadBox: {
+    width: "100%",
+    height: 250,
+    borderRadius: 26,
+    backgroundColor: "#DAD8C5",
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  uploadedImage: {
+    width: "100%",
+    height: "100%",
+  },
+
+  uploadOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: "rgba(255, 253, 232, 0.68)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+
+  uploadInner: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "rgba(255, 253, 232, 0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+  },
+
+  uploadText: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: "#333333",
+    textAlign: "center",
+    lineHeight: 25,
+    marginTop: 12,
+    marginBottom: 16,
+  },
+
+  uploadLoading: {
+    marginTop: 4,
+  },
+
+  keywordTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 28,
+    marginBottom: 14,
+  },
+
+  keywordTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#2C2C2C",
+  },
+
+  keywordButton: {
     height: 58,
-    backgroundColor: "#FFF0B8",
+    backgroundColor: "#FFE18A",
     borderRadius: 30,
-    marginBottom: 26,
     paddingHorizontal: 26,
     flexDirection: "row",
     alignItems: "center",
@@ -406,13 +518,13 @@ activeDot: {
     elevation: 4,
   },
 
-  searchButtonText: {
+  keywordButtonText: {
     fontSize: 20,
     fontWeight: "800",
     color: "#333333",
   },
 
-  searchButtonArrow: {
+  keywordButtonArrow: {
     position: "absolute",
     right: 24,
   },
@@ -423,7 +535,7 @@ activeDot: {
     right: 0,
     bottom: 0,
     height: 95,
-    backgroundColor: "#FEFDDF",
+    backgroundColor: "#FFFDE8",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-around",
@@ -432,8 +544,8 @@ activeDot: {
   },
 
   navButton: {
-    width: 60,
-    height: 60,
+    width: 66,
+    height: 66,
     borderRadius: 33,
     backgroundColor: "#FFDC74",
     alignItems: "center",

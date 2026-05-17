@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useState } from "react";
 import { router } from "expo-router";
+import { useState } from "react";
 import {
   Image,
   ScrollView,
@@ -40,8 +40,34 @@ const regionKeywords = [
 ];
 
 export default function KeywordSearchScreen() {
-  const [selectedMood, setSelectedMood] = useState("신비로운");
-  const [selectedRegion, setSelectedRegion] = useState("충청북도");
+  const [selectedMoods, setSelectedMoods] = useState<string[]>(["신비로운"]);
+  const [selectedRegions, setSelectedRegions] = useState<string[]>(["충청북도"]);
+
+  const toggleMood = (keyword: string) => {
+    setSelectedMoods((prev) =>
+      prev.includes(keyword)
+        ? prev.filter((item) => item !== keyword)
+        : [...prev, keyword]
+    );
+  };
+
+  const toggleRegion = (region: string) => {
+    setSelectedRegions((prev) =>
+      prev.includes(region)
+        ? prev.filter((item) => item !== region)
+        : [...prev, region]
+    );
+  };
+
+  const handleSearch = () => {
+    router.push({
+      pathname: "/keyword-result",
+      params: {
+        mood: selectedMoods.join(","),
+        region: selectedRegions.join(","),
+      },
+    });
+  };
 
   return (
     <View style={styles.container}>
@@ -69,13 +95,14 @@ export default function KeywordSearchScreen() {
         <View style={styles.keywordBox}>
           <View style={styles.keywordGrid}>
             {moodKeywords.map((keyword) => {
-              const active = selectedMood === keyword;
+              const active = selectedMoods.includes(keyword);
 
               return (
                 <TouchableOpacity
                   key={keyword}
                   style={[styles.keywordChip, active && styles.activeChip]}
-                  onPress={() => setSelectedMood(keyword)}
+                  onPress={() => toggleMood(keyword)}
+                  activeOpacity={0.85}
                 >
                   <Text style={styles.keywordText}>#{keyword}</Text>
                 </TouchableOpacity>
@@ -84,21 +111,31 @@ export default function KeywordSearchScreen() {
           </View>
         </View>
 
+        <View style={styles.selectedPreviewBox}>
+          <Text style={styles.selectedPreviewTitle}>선택한 키워드</Text>
+          <Text style={styles.selectedPreviewText}>
+            {selectedMoods.length > 0
+              ? selectedMoods.map((item) => `#${item}`).join(" ")
+              : "선택된 키워드 없음"}
+          </Text>
+        </View>
+
         <View style={styles.filterTitleRow}>
-          <Ionicons name="search-outline" size={34} color="#F28C2E" />
+          <Ionicons name="location-outline" size={34} color="#F28C2E" />
           <Text style={styles.filterTitle}>장소 필터</Text>
         </View>
 
         <View style={styles.keywordBox}>
           <View style={styles.keywordGrid}>
             {regionKeywords.map((region) => {
-              const active = selectedRegion === region;
+              const active = selectedRegions.includes(region);
 
               return (
                 <TouchableOpacity
                   key={region}
                   style={[styles.keywordChip, active && styles.activeChip]}
-                  onPress={() => setSelectedRegion(region)}
+                  onPress={() => toggleRegion(region)}
+                  activeOpacity={0.85}
                 >
                   <Text style={styles.keywordText}>{region}</Text>
                 </TouchableOpacity>
@@ -107,25 +144,32 @@ export default function KeywordSearchScreen() {
           </View>
         </View>
 
-       <TouchableOpacity
-  style={styles.searchSubmitButton}
-  onPress={() =>
-    router.push({
-      pathname: "/keyword-result",
-      params: {
-        mood: selectedMood,
-        region: selectedRegion,
-      },
-    })
-  }
->
-  <Text style={styles.searchSubmitText}>검색</Text>
-</TouchableOpacity>
+        <View style={styles.selectedPreviewBox}>
+          <Text style={styles.selectedPreviewTitle}>선택한 지역</Text>
+          <Text style={styles.selectedPreviewText}>
+            {selectedRegions.length > 0
+              ? selectedRegions.join(", ")
+              : "선택된 지역 없음"}
+          </Text>
+        </View>
+
+        <TouchableOpacity
+          style={[
+            styles.searchSubmitButton,
+            (selectedMoods.length === 0 || selectedRegions.length === 0) &&
+              styles.disabledButton,
+          ]}
+          onPress={handleSearch}
+          disabled={selectedMoods.length === 0 || selectedRegions.length === 0}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.searchSubmitText}>검색</Text>
+        </TouchableOpacity>
       </ScrollView>
 
       <View style={styles.bottomNav}>
-        <NavButton icon="home-outline" active/>
-        <NavButton icon="location-outline" />
+        <NavButton icon="home-outline" active onPress={() => router.push("/home")} />
+        <NavButton icon="location-outline" onPress={() => router.push("/map")} />
         <NavButton icon="heart-outline" />
         <NavButton icon="chatbubbles-outline" />
       </View>
@@ -136,12 +180,18 @@ export default function KeywordSearchScreen() {
 function NavButton({
   icon,
   active = false,
+  onPress,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   active?: boolean;
+  onPress?: () => void;
 }) {
   return (
-    <TouchableOpacity style={[styles.navButton, active && styles.activeNavButton]}>
+    <TouchableOpacity
+      style={[styles.navButton, active && styles.activeNavButton]}
+      onPress={onPress}
+      activeOpacity={0.85}
+    >
       <Ionicons name={icon} size={36} color="#F28C2E" />
     </TouchableOpacity>
   );
@@ -239,9 +289,31 @@ const styles = StyleSheet.create({
   },
 
   keywordText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "800",
     color: "#333333",
+  },
+
+  selectedPreviewBox: {
+    marginTop: 14,
+    backgroundColor: "#FFF7D1",
+    borderRadius: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+
+  selectedPreviewTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#8A6B1D",
+    marginBottom: 4,
+  },
+
+  selectedPreviewText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#333333",
+    lineHeight: 20,
   },
 
   searchSubmitButton: {
@@ -258,6 +330,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.18,
     shadowRadius: 3,
     elevation: 4,
+  },
+
+  disabledButton: {
+    backgroundColor: "#E0D6AA",
   },
 
   searchSubmitText: {
@@ -281,10 +357,10 @@ const styles = StyleSheet.create({
   },
 
   navButton: {
-    width: 66,
-    height: 66,
-    borderRadius: 33,
-    backgroundColor: "#FFDC74",
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: "#FFE08A",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -294,7 +370,7 @@ const styles = StyleSheet.create({
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.22,
-    shadowRadius: 4,
+    shadowRadius: 5,
     elevation: 5,
   },
 });

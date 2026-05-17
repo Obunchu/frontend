@@ -1,8 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import * as ImagePicker from "expo-image-picker";
-import { useState } from "react";
+import { router, useLocalSearchParams } from "expo-router";
 import {
-  ActivityIndicator,
   Image,
   ScrollView,
   StyleSheet,
@@ -31,55 +29,24 @@ const mockPlaces: Place[] = [
   },
   {
     id: "2",
-    name: "남산공원",
-    address: "서울특별시 중구 삼일대로 231",
-    similarity: 88,
-    tags: ["전망좋은", "도심", "야경"],
-    mood: "도심 속에서 전망을 즐길 수 있는 차분한 분위기",
+    name: "북촌한옥마을",
+    address: "서울 종로구 계동길 37",
+    similarity: 89,
+    tags: ["전통", "차분한", "골목"],
+    mood: "한옥과 골목길이 어우러진 차분한 분위기",
   },
   {
     id: "3",
-    name: "하늘공원",
-    address: "서울특별시 마포구 하늘공원로 95",
-    similarity: 84,
-    tags: ["자연", "노을", "산책"],
-    mood: "넓은 하늘과 자연 풍경이 느껴지는 여유로운 분위기",
+    name: "남산공원",
+    address: "서울특별시 중구 삼일대로 231",
+    similarity: 86,
+    tags: ["전망좋은", "도심", "야경"],
+    mood: "도심 속에서 전망을 즐길 수 있는 여유로운 분위기",
   },
 ];
 
 export default function ImageSearchScreen() {
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [places, setPlaces] = useState<Place[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
-
-  const pickImage = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-    if (!permission.granted) {
-      alert("사진 접근 권한이 필요합니다.");
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8,
-    });
-
-    if (!result.canceled) {
-      const imageUri = result.assets[0].uri;
-
-      setSelectedImage(imageUri);
-      setHasSearched(true);
-      setLoading(true);
-      setPlaces([]);
-
-      setTimeout(() => {
-        setPlaces(mockPlaces);
-        setLoading(false);
-      }, 1500);
-    }
-  };
+  const { imageUri } = useLocalSearchParams<{ imageUri?: string }>();
 
   return (
     <View style={styles.container}>
@@ -91,7 +58,7 @@ export default function ImageSearchScreen() {
             resizeMode="contain"
           />
 
-          <Text style={styles.title}>이미지 검색</Text>
+          <Text style={styles.title}>이미지 검색 결과</Text>
 
           <View style={styles.profileArea}>
             <Ionicons name="person-circle-outline" size={48} color="#263A56" />
@@ -99,88 +66,63 @@ export default function ImageSearchScreen() {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.uploadBox} onPress={pickImage}>
-          {selectedImage ? (
-            <>
-              <Image source={{ uri: selectedImage }} style={styles.uploadedImage} />
-              <View style={styles.imageOverlay}>
-                <Ionicons name="image-outline" size={64} color="#6FA8DC" />
-              </View>
-            </>
-          ) : (
-            <View style={styles.placeholder}>
-              <Ionicons name="image-outline" size={74} color="#6FA8DC" />
-              <Text style={styles.placeholderText}>이미지를 선택해주세요</Text>
+        {imageUri && (
+          <View style={styles.selectedImageBox}>
+            <Image source={{ uri: imageUri }} style={styles.selectedImage} />
+          </View>
+        )}
+
+        <View style={styles.resultHeader}>
+          <Text style={styles.resultTitle}>비슷한 감성 여행지</Text>
+          <Text style={styles.resultCount}>{mockPlaces.length}개의 장소</Text>
+        </View>
+
+        {mockPlaces.map((place, index) => (
+          <TouchableOpacity key={place.id} style={styles.listCard}>
+            <View style={styles.rankCircle}>
+              <Text style={styles.rankText}>{index + 1}</Text>
             </View>
-          )}
-        </TouchableOpacity>
 
-        <Text style={styles.description}>
-          {hasSearched
-            ? "업로드한 사진과 비슷한 감성 여행지 찾는 중.."
-            : "사진을 업로드하면 비슷한 감성의 여행지를 추천해드려요"}
-        </Text>
-
-        {loading && (
-          <View style={styles.loadingArea}>
-            <ActivityIndicator size="large" color="#6FA8DC" />
-          </View>
-        )}
-
-        {!loading && places.length > 0 && (
-          <View style={styles.resultHeader}>
-            <Text style={styles.resultTitle}>추천 결과</Text>
-            <Text style={styles.resultCount}>{places.length}개의 장소</Text>
-          </View>
-        )}
-
-        {!loading &&
-          places.map((place, index) => (
-            <TouchableOpacity key={place.id} style={styles.listCard}>
-              <View style={styles.rankCircle}>
-                <Text style={styles.rankText}>{index + 1}</Text>
+            <View style={styles.listContent}>
+              <View style={styles.placeTitleRow}>
+                <Ionicons name="location-sharp" size={24} color="#F28C2E" />
+                <Text style={styles.placeName}>{place.name}</Text>
               </View>
 
-              <View style={styles.listContent}>
-                <View style={styles.placeTitleRow}>
-                  <Ionicons name="location-sharp" size={24} color="#F28C2E" />
-                  <Text style={styles.placeName}>{place.name}</Text>
-                </View>
-
-                <View style={styles.addressBox}>
-                  <Text style={styles.addressText}>{place.address}</Text>
-                </View>
-
-                <Text style={styles.moodText}>{place.mood}</Text>
-
-                <Text style={styles.matchText}>
-                  업로드한 사진과의 유사도 {place.similarity}%
-                </Text>
-
-                <Text style={styles.tagText}>
-                  {place.tags.map((tag) => `#${tag}`).join(" ")}
-                </Text>
+              <View style={styles.addressBox}>
+                <Text style={styles.addressText}>{place.address}</Text>
               </View>
 
-              <View style={styles.rightArea}>
-                <TouchableOpacity>
-                  <Ionicons name="heart-outline" size={34} color="#FFD75E" />
-                </TouchableOpacity>
+              <Text style={styles.moodText}>{place.mood}</Text>
 
-                <Ionicons
-                  name="chevron-forward"
-                  size={24}
-                  color="#C4BFA3"
-                  style={styles.chevron}
-                />
-              </View>
-            </TouchableOpacity>
-          ))}
+              <Text style={styles.matchText}>
+                업로드한 사진과의 유사도 {place.similarity}%
+              </Text>
+
+              <Text style={styles.tagText}>
+                {place.tags.map((tag) => `#${tag}`).join(" ")}
+              </Text>
+            </View>
+
+            <View style={styles.rightArea}>
+              <TouchableOpacity>
+                <Ionicons name="heart-outline" size={34} color="#FFD75E" />
+              </TouchableOpacity>
+
+              <Ionicons
+                name="chevron-forward"
+                size={24}
+                color="#C4BFA3"
+                style={styles.chevron}
+              />
+            </View>
+          </TouchableOpacity>
+        ))}
       </ScrollView>
 
       <View style={styles.bottomNav}>
-        <NavButton icon="home-outline" active/>
-        <NavButton icon="location-outline" />
+        <NavButton icon="home-outline" active onPress={() => router.push("/home")} />
+        <NavButton icon="location-outline" onPress={() => router.push("/map")} />
         <NavButton icon="heart-outline" />
         <NavButton icon="chatbubbles-outline" />
       </View>
@@ -191,12 +133,17 @@ export default function ImageSearchScreen() {
 function NavButton({
   icon,
   active = false,
+  onPress,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   active?: boolean;
+  onPress?: () => void;
 }) {
   return (
-    <TouchableOpacity style={[styles.navButton, active && styles.activeNavButton]}>
+    <TouchableOpacity
+      style={[styles.navButton, active && styles.activeNavButton]}
+      onPress={onPress}
+    >
       <Ionicons name={icon} size={36} color="#F28C2E" />
     </TouchableOpacity>
   );
@@ -226,7 +173,7 @@ const styles = StyleSheet.create({
   },
 
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "800",
     color: "#2C2C2C",
   },
@@ -242,63 +189,22 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  uploadBox: {
+  selectedImageBox: {
     marginTop: 28,
     width: "100%",
-    height: 275,
-    borderRadius: 30,
-    backgroundColor: "#EEE9D0",
+    height: 210,
+    borderRadius: 28,
     overflow: "hidden",
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: "#EEE9D0",
   },
 
-  uploadedImage: {
+  selectedImage: {
     width: "100%",
     height: "100%",
   },
 
-  imageOverlay: {
-    position: "absolute",
-    width: 92,
-    height: 92,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: "#6FA8DC",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255, 253, 232, 0.25)",
-  },
-
-  placeholder: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  placeholderText: {
-    marginTop: 10,
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#5D6B73",
-  },
-
-  description: {
-    marginTop: 26,
-    textAlign: "center",
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#2C2C2C",
-    lineHeight: 26,
-  },
-
-  loadingArea: {
-    height: 120,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
   resultHeader: {
-    marginTop: 28,
+    marginTop: 30,
     marginBottom: 14,
     flexDirection: "row",
     alignItems: "center",
