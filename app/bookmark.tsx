@@ -1,32 +1,57 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as Location from "expo-location";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Dimensions,
+  Image,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
+import MapView, { Marker, PROVIDER_GOOGLE, Region } from "react-native-maps";
 
 type BookmarkMode = "list" | "map";
 
-const bookmarks = [
+type BookmarkPlace = {
+  id: string;
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  mood: string;
+};
+
+const { width } = Dimensions.get("window");
+
+const bookmarks: BookmarkPlace[] = [
   {
     id: "1",
     name: "덕수궁 돌담길",
     address: "서울 중구 세종대로19길 24 영국대사관",
+    latitude: 37.5658,
+    longitude: 126.9751,
+    mood: "고즈넉한 산책길 분위기",
   },
   {
     id: "2",
     name: "북서울꿈의숲",
     address: "서울 강북구 월계로 173",
+    latitude: 37.6217,
+    longitude: 127.0412,
+    mood: "자연과 여유가 느껴지는 분위기",
   },
   {
     id: "3",
     name: "반포한강공원",
     address: "서울 서초구 신반포로11길 40",
+    latitude: 37.5105,
+    longitude: 126.9959,
+    mood: "강변과 야경이 어울리는 분위기",
   },
 ];
 
@@ -35,64 +60,53 @@ export default function BookmarkScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* 상단 */}
-        <View style={styles.topArea}>
-          <View style={styles.logoArea}>
-            <Image
-              source={require("../assets/images/logo.png")}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-          </View>
+      <View style={styles.topArea}>
+        <Image
+          source={require("../assets/images/logo.png")}
+          style={styles.logo}
+          resizeMode="contain"
+        />
 
-          <Text style={styles.title}>나의 북마크</Text>
+        <Text style={styles.title}>나의 북마크</Text>
 
-          <View style={styles.profileArea}>
-            <Ionicons name="person-circle-outline" size={44} color="#263A56" />
-            <Text style={styles.profileName}>수정님</Text>
-          </View>
+        <View style={styles.profileArea}>
+          <Ionicons name="person-circle-outline" size={44} color="#263A56" />
+          <Text style={styles.profileName}>수정님</Text>
         </View>
+      </View>
 
-        {/* 리스트형 / 지도형 탭 */}
-        <View style={styles.modeTabs}>
-          <TouchableOpacity onPress={() => setMode("list")}>
-            <Text
-              style={[
-                styles.modeText,
-                mode === "list" && styles.activeModeText,
-              ]}
-            >
-              리스트형
-            </Text>
-          </TouchableOpacity>
+      <View style={styles.modeTabs}>
+        <TouchableOpacity onPress={() => setMode("list")}>
+          <Text
+            style={[
+              styles.modeText,
+              mode === "list" && styles.activeModeText,
+            ]}
+          >
+            리스트형
+          </Text>
+        </TouchableOpacity>
 
-          <Text style={styles.divider}>|</Text>
+        <Text style={styles.divider}>|</Text>
 
-          <TouchableOpacity onPress={() => setMode("map")}>
-            <Text
-              style={[
-                styles.modeText,
-                mode === "map" && styles.activeModeText,
-              ]}
-            >
-              지도형
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity onPress={() => setMode("map")}>
+          <Text
+            style={[
+              styles.modeText,
+              mode === "map" && styles.activeModeText,
+            ]}
+          >
+            지도형
+          </Text>
+        </TouchableOpacity>
+      </View>
 
-        {mode === "list" ? <BookmarkList /> : <BookmarkMap />}
-      </ScrollView>
+      {mode === "list" ? <BookmarkList /> : <BookmarkMap />}
 
-      {/* 하단 네비게이션 */}
       <View style={styles.bottomNav}>
         <NavButton icon="home-outline" onPress={() => router.push("/home")} />
         <NavButton icon="location-outline" onPress={() => router.push("/map")} />
-        <NavButton icon="heart-outline" active />
+        <NavButton icon="heart-outline" active onPress={() => router.push("/bookmark")} />
         <NavButton icon="chatbubbles-outline" />
       </View>
     </View>
@@ -101,10 +115,14 @@ export default function BookmarkScreen() {
 
 function BookmarkList() {
   return (
-    <View style={styles.listArea}>
+    <ScrollView
+      contentContainerStyle={styles.listScrollContent}
+      showsVerticalScrollIndicator={false}
+    >
       {bookmarks.map((item) => (
         <View key={item.id} style={styles.bookmarkCard}>
           <View style={styles.imagePlaceholder}>
+            <Ionicons name="image-outline" size={58} color="#6FA8DC" />
             <Text style={styles.imageText}>장소 이미지</Text>
           </View>
 
@@ -122,42 +140,139 @@ function BookmarkList() {
               <Text style={styles.addressText}>{item.address}</Text>
             </View>
 
+            <Text style={styles.moodText}>{item.mood}</Text>
+
             <TouchableOpacity style={styles.arrowButton}>
               <Ionicons name="arrow-forward" size={30} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
         </View>
       ))}
-    </View>
+    </ScrollView>
   );
 }
 
 function BookmarkMap() {
+  const mapRef = useRef<MapView | null>(null);
+  const [region, setRegion] = useState<Region | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getCurrentLocation();
+  }, []);
+
+  const getCurrentLocation = async () => {
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+
+      if (!permission.granted) {
+        setRegion({
+          latitude: 37.5665,
+          longitude: 126.978,
+          latitudeDelta: 0.12,
+          longitudeDelta: 0.12,
+        });
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({});
+
+      setRegion({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        latitudeDelta: 0.08,
+        longitudeDelta: 0.08,
+      });
+    } catch (error) {
+      setRegion({
+        latitude: 37.5665,
+        longitude: 126.978,
+        latitudeDelta: 0.12,
+        longitudeDelta: 0.12,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const moveToPlace = (place: BookmarkPlace) => {
+    const nextRegion = {
+      latitude: place.latitude,
+      longitude: place.longitude,
+      latitudeDelta: 0.025,
+      longitudeDelta: 0.025,
+    };
+
+    setRegion(nextRegion);
+    mapRef.current?.animateToRegion(nextRegion, 500);
+  };
+
   return (
     <View style={styles.mapModeArea}>
-      <View style={styles.mapPlaceholder}>
-        <Text style={styles.mapText}>북마크 지도 API 영역</Text>
-
-        <View style={[styles.marker, { top: "24%", left: "60%" }]} />
-        <View style={[styles.marker, { top: "58%", left: "22%" }]} />
-        <View style={[styles.marker, { top: "70%", left: "72%" }]} />
+      <View style={styles.mapArea}>
+        {loading || !region ? (
+          <View style={styles.loadingBox}>
+            <ActivityIndicator size="large" color="#F28C2E" />
+            <Text style={styles.loadingText}>지도를 불러오는 중...</Text>
+          </View>
+        ) : (
+          <MapView
+            ref={mapRef}
+            style={styles.map}
+            provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
+            initialRegion={region}
+            showsUserLocation
+            showsMyLocationButton
+          >
+            {bookmarks.map((place) => (
+              <Marker
+                key={place.id}
+                coordinate={{
+                  latitude: place.latitude,
+                  longitude: place.longitude,
+                }}
+                title={place.name}
+                description={place.address}
+                pinColor="#F28C2E"
+              />
+            ))}
+          </MapView>
+        )}
       </View>
 
-      <View style={styles.mapCard}>
-        <View style={styles.mapCardImage}>
-          <Text style={styles.mapCardTitle}>덕수궁 돌담길</Text>
-          <View style={styles.mapAddressBadge}>
-            <Text style={styles.addressText}>서울 중구 세종대로19길 24 영국대사관</Text>
-          </View>
-        </View>
+      <View style={styles.mapCardArea}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.mapCardContent}
+        >
+          {bookmarks.map((place) => (
+            <TouchableOpacity
+              key={place.id}
+              style={styles.mapCard}
+              onPress={() => moveToPlace(place)}
+              activeOpacity={0.85}
+            >
+              <View style={styles.mapCardImage}>
+                <Ionicons name="image-outline" size={36} color="#6FA8DC" />
+              </View>
 
-        <TouchableOpacity style={styles.mapHeartButton}>
-          <Ionicons name="heart" size={34} color="#F28C2E" />
-        </TouchableOpacity>
+              <View style={styles.mapCardTextArea}>
+                <Text style={styles.mapCardTitle}>{place.name}</Text>
+                <Text style={styles.mapCardAddress} numberOfLines={1}>
+                  {place.address}
+                </Text>
+                <Text style={styles.mapCardMood} numberOfLines={2}>
+                  {place.mood}
+                </Text>
+              </View>
 
-        <TouchableOpacity style={styles.mapArrowButton}>
-          <Ionicons name="arrow-forward" size={28} color="#FFFFFF" />
-        </TouchableOpacity>
+              <TouchableOpacity style={styles.mapHeartButton}>
+                <Ionicons name="heart" size={28} color="#F28C2E" />
+              </TouchableOpacity>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
     </View>
   );
@@ -176,6 +291,7 @@ function NavButton({
     <TouchableOpacity
       style={[styles.navButton, active && styles.activeNavButton]}
       onPress={onPress}
+      activeOpacity={0.85}
     >
       <Ionicons name={icon} size={34} color="#F28C2E" />
     </TouchableOpacity>
@@ -188,32 +304,16 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFDE8",
   },
 
-  scrollView: {
-    flex: 1,
-  },
-
-  scrollContent: {
-    paddingTop: 70,
-    paddingHorizontal: 26,
-    paddingBottom: 130,
-  },
-
   topArea: {
+    paddingTop: 64,
+    paddingHorizontal: 26,
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
-  },
-
-  logoArea: {
-    width: 105,
-    height: 86,
-    alignItems: "center",
-    justifyContent: "center",
   },
 
   logo: {
     width: 105,
-    height: 86,
+    height: 78,
   },
 
   title: {
@@ -236,15 +336,17 @@ const styles = StyleSheet.create({
   },
 
   modeTabs: {
+    paddingHorizontal: 26,
     flexDirection: "row",
     alignItems: "center",
+    marginTop: 6,
     marginBottom: 14,
   },
 
   modeText: {
     fontSize: 16,
     color: "#333333",
-    fontWeight: "600",
+    fontWeight: "700",
   },
 
   activeModeText: {
@@ -256,168 +358,189 @@ const styles = StyleSheet.create({
     color: "#333333",
   },
 
-  listArea: {
+  listScrollContent: {
+    paddingHorizontal: 26,
+    paddingBottom: 130,
     gap: 28,
   },
 
   bookmarkCard: {
-    height: 245,
-    borderRadius: 24,
+    height: 280,
+    borderRadius: 32,
+    backgroundColor: "#FFFFF4",
     overflow: "hidden",
-    backgroundColor: "#D9D9D9",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 5 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.18,
-    shadowRadius: 6,
-    elevation: 5,
+    shadowRadius: 5,
+    elevation: 6,
   },
 
   imagePlaceholder: {
     flex: 1,
-    backgroundColor: "#9EA8AF",
+    backgroundColor: "#EAF1E4",
     alignItems: "center",
     justifyContent: "center",
   },
 
   imageText: {
-    fontSize: 24,
+    marginTop: 8,
+    fontSize: 16,
     fontWeight: "800",
-    color: "#69747C",
+    color: "#6FA8DC",
   },
 
   heartButton: {
     position: "absolute",
-    top: 24,
-    right: 20,
+    top: 18,
+    right: 18,
   },
 
   cardBottom: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
     paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingVertical: 16,
+    backgroundColor: "#FFFFF4",
   },
 
   placeNameRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
   },
 
   placeName: {
-    marginLeft: 8,
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#FFFFFF",
+    marginLeft: 4,
+    fontSize: 21,
+    fontWeight: "900",
+    color: "#333333",
   },
 
   addressBadge: {
     alignSelf: "flex-start",
-    backgroundColor: "#FFD957",
+    marginTop: 7,
+    backgroundColor: "#FFD75E",
     borderRadius: 18,
-    paddingHorizontal: 18,
-    paddingVertical: 7,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
   },
 
   addressText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#333333",
+  },
+
+  moodText: {
+    marginTop: 8,
     fontSize: 13,
     fontWeight: "700",
-    color: "#333333",
+    color: "#555555",
   },
 
   arrowButton: {
     position: "absolute",
     right: 18,
-    bottom: 14,
+    bottom: 18,
     width: 46,
     height: 46,
     borderRadius: 23,
-    backgroundColor: "rgba(80,80,80,0.55)",
+    backgroundColor: "rgba(160, 160, 160, 0.75)",
     alignItems: "center",
     justifyContent: "center",
   },
 
   mapModeArea: {
-    position: "relative",
+    flex: 1,
+    paddingHorizontal: 26,
+    paddingBottom: 118,
   },
 
-  mapPlaceholder: {
-    width: "100%",
-    height: 540,
-    borderRadius: 22,
+  mapArea: {
+    flex: 1,
+    minHeight: 440,
+    borderRadius: 24,
     overflow: "hidden",
-    backgroundColor: "#E2E2E2",
+    backgroundColor: "#E8E8E8",
+  },
+
+  map: {
+    width: "100%",
+    height: "100%",
+  },
+
+  loadingBox: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  mapText: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: "#8C8C8C",
+  loadingText: {
+    marginTop: 12,
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#555555",
   },
 
-  marker: {
+  mapCardArea: {
     position: "absolute",
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: "#F28C2E",
-    borderWidth: 3,
-    borderColor: "#FFFFFF",
+    left: 0,
+    right: 0,
+    bottom: 118,
+  },
+
+  mapCardContent: {
+    paddingHorizontal: 34,
   },
 
   mapCard: {
-    position: "absolute",
-    left: 24,
-    right: 24,
-    bottom: 28,
-    height: 210,
-    borderRadius: 24,
+    width: width * 0.42,
+    height: 150,
+    borderRadius: 20,
+    backgroundColor: "#FFFFF4",
     overflow: "hidden",
-    backgroundColor: "#9EA8AF",
+    marginRight: 14,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 4,
+    elevation: 5,
   },
 
   mapCardImage: {
-    flex: 1,
-    justifyContent: "flex-end",
-    paddingLeft: 22,
-    paddingBottom: 18,
+    height: 56,
+    backgroundColor: "#EAF1E4",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  mapCardTextArea: {
+    paddingHorizontal: 10,
+    paddingTop: 8,
+    paddingRight: 34,
   },
 
   mapCardTitle: {
-    color: "#FFFFFF",
-    fontSize: 19,
-    fontWeight: "800",
-    marginBottom: 8,
+    fontSize: 15,
+    fontWeight: "900",
+    color: "#333333",
   },
 
-  mapAddressBadge: {
-    alignSelf: "flex-start",
-    backgroundColor: "#FFD957",
-    borderRadius: 18,
-    paddingHorizontal: 18,
-    paddingVertical: 7,
+  mapCardAddress: {
+    marginTop: 3,
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#555555",
+  },
+
+  mapCardMood: {
+    marginTop: 4,
+    fontSize: 10,
+    color: "#777777",
   },
 
   mapHeartButton: {
     position: "absolute",
-    top: 20,
-    right: 18,
-  },
-
-  mapArrowButton: {
-    position: "absolute",
-    right: 18,
-    bottom: 14,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "rgba(80,80,80,0.55)",
-    alignItems: "center",
-    justifyContent: "center",
+    right: 8,
+    bottom: 8,
   },
 
   bottomNav: {
@@ -425,20 +548,20 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 105,
+    height: 95,
     backgroundColor: "#FFFDE8",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-around",
-    paddingHorizontal: 32,
-    paddingBottom: 22,
+    paddingHorizontal: 28,
+    paddingBottom: 18,
   },
 
   navButton: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    backgroundColor: "#FFE08A",
+    width: 66,
+    height: 66,
+    borderRadius: 33,
+    backgroundColor: "#FFDC74",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -448,7 +571,7 @@ const styles = StyleSheet.create({
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.22,
-    shadowRadius: 5,
+    shadowRadius: 4,
     elevation: 5,
   },
 });
