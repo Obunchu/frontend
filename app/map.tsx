@@ -1,7 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as Location from "expo-location";
 import { router } from "expo-router";
+import { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
+  Dimensions,
   Image,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -9,74 +14,187 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import MapView, { Marker, PROVIDER_GOOGLE, Region } from "react-native-maps";
 
-const places = [
-  { id: "1", name: "낙산공원" },
-  { id: "2", name: "성북천" },
-  { id: "3", name: "개운산" },
+const { width } = Dimensions.get("window");
+
+type Place = {
+  id: string;
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  mood: string;
+};
+
+const places: Place[] = [
+  {
+    id: "1",
+    name: "낙산공원",
+    address: "서울 종로구 낙산길 41",
+    latitude: 37.5806,
+    longitude: 127.0072,
+    mood: "야경과 성곽길이 어울리는 산책 장소",
+  },
+  {
+    id: "2",
+    name: "성북천",
+    address: "서울 성북구 동소문동",
+    latitude: 37.5892,
+    longitude: 127.0095,
+    mood: "조용하게 걷기 좋은 산책로",
+  },
+  {
+    id: "3",
+    name: "개운산",
+    address: "서울 성북구 돈암동",
+    latitude: 37.5964,
+    longitude: 127.0242,
+    mood: "자연과 전망이 어우러진 장소",
+  },
 ];
 
 export default function MapScreen() {
+  const mapRef = useRef<MapView | null>(null);
+  const [region, setRegion] = useState<Region | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getCurrentLocation();
+  }, []);
+
+  const getCurrentLocation = async () => {
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+
+      if (!permission.granted) {
+        setRegion({
+          latitude: 37.5665,
+          longitude: 126.978,
+          latitudeDelta: 0.04,
+          longitudeDelta: 0.04,
+        });
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({});
+
+      setRegion({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        latitudeDelta: 0.035,
+        longitudeDelta: 0.035,
+      });
+    } catch (error) {
+      setRegion({
+        latitude: 37.5665,
+        longitude: 126.978,
+        latitudeDelta: 0.04,
+        longitudeDelta: 0.04,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const moveToPlace = (place: Place) => {
+    const nextRegion = {
+      latitude: place.latitude,
+      longitude: place.longitude,
+      latitudeDelta: 0.02,
+      longitudeDelta: 0.02,
+    };
+
+    setRegion(nextRegion);
+    mapRef.current?.animateToRegion(nextRegion, 500);
+  };
+
   return (
     <View style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* 상단 로고 / 검색 / 프로필 */}
-        <View style={styles.topArea}>
-          <View style={styles.logoArea}>
-            <Image
-              source={require("../assets/images/logo.png")}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-          </View>
+      <View style={styles.topArea}>
+        <Image
+          source={require("../assets/images/logo.png")}
+          style={styles.logo}
+          resizeMode="contain"
+        />
 
-          <View style={styles.searchBox}>
-            <Ionicons name="search-outline" size={20} color="#A8A8A8" />
-            <TextInput
-              placeholder="Search"
-              placeholderTextColor="#A8A8A8"
-              style={styles.searchInput}
-            />
-          </View>
-
-          <View style={styles.profileArea}>
-            <Ionicons name="person-circle-outline" size={48} color="#263A56" />
-            <Text style={styles.profileName}>수정님</Text>
-          </View>
+        <View style={styles.searchBox}>
+          <Ionicons name="search-outline" size={20} color="#A8A8A8" />
+          <TextInput
+            placeholder="Search"
+            placeholderTextColor="#A8A8A8"
+            style={styles.searchInput}
+          />
         </View>
 
-        {/* 지도 API 자리 */}
-        <View style={styles.mapPlaceholder}>
-          <Text style={styles.mapText}>지도 API</Text>
-
-          <View style={[styles.marker, { top: "34%", left: "48%" }]} />
-          <View style={[styles.marker, { top: "46%", left: "30%" }]} />
-          <View style={[styles.marker, { top: "58%", left: "54%" }]} />
-          <View style={[styles.marker, { top: "42%", left: "76%" }]} />
-          <View style={[styles.marker, { top: "66%", left: "22%" }]} />
+        <View style={styles.profileArea}>
+          <Ionicons name="person-circle-outline" size={48} color="#263A56" />
+          <Text style={styles.profileName}>수정님</Text>
         </View>
+      </View>
 
-        {/* 추천 카드 */}
-        <View style={styles.placeCardArea}>
+      <View style={styles.mapArea}>
+        {loading || !region ? (
+          <View style={styles.loadingBox}>
+            <ActivityIndicator size="large" color="#F28C2E" />
+            <Text style={styles.loadingText}>현재 위치를 불러오는 중...</Text>
+          </View>
+        ) : (
+          <MapView
+            ref={mapRef}
+            style={styles.map}
+            provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
+            initialRegion={region}
+            showsUserLocation
+            showsMyLocationButton
+          >
+            {places.map((place) => (
+              <Marker
+                key={place.id}
+                coordinate={{
+                  latitude: place.latitude,
+                  longitude: place.longitude,
+                }}
+                title={place.name}
+                description={place.address}
+                pinColor="#F28C2E"
+              />
+            ))}
+          </MapView>
+        )}
+      </View>
+
+      <View style={styles.placeCardArea}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.placeCardContent}
+        >
           {places.map((place) => (
-            <TouchableOpacity key={place.id} style={styles.placeCard}>
+            <TouchableOpacity
+              key={place.id}
+              style={styles.placeCard}
+              onPress={() => moveToPlace(place)}
+              activeOpacity={0.85}
+            >
               <View style={styles.cardImagePlaceholder}>
+                <Ionicons name="image-outline" size={36} color="#6FA8DC" />
+              </View>
+
+              <View style={styles.cardTextArea}>
                 <Text style={styles.cardTitle}>{place.name}</Text>
+                <Text style={styles.cardAddress}>{place.address}</Text>
+                <Text style={styles.cardMood}>{place.mood}</Text>
               </View>
             </TouchableOpacity>
           ))}
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </View>
 
-      {/* 하단 네비게이션 */}
       <View style={styles.bottomNav}>
         <NavButton icon="home-outline" onPress={() => router.push("/home")} />
         <NavButton icon="location-outline" active />
-        <NavButton icon="heart-outline" onPress={() => router.push("/bookmark")} />
+        <NavButton icon="heart-outline" />
         <NavButton icon="chatbubbles-outline" />
       </View>
     </View>
@@ -96,6 +214,7 @@ function NavButton({
     <TouchableOpacity
       style={[styles.navButton, active && styles.activeNavButton]}
       onPress={onPress}
+      activeOpacity={0.85}
     >
       <Ionicons name={icon} size={34} color="#F28C2E" />
     </TouchableOpacity>
@@ -108,33 +227,17 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFDE8",
   },
 
-  scrollView: {
-    flex: 1,
-    backgroundColor: "#FFFDE8",
-  },
-
-  scrollContent: {
-    paddingTop: 35,
-    paddingHorizontal: 30,
-    paddingBottom: 130,
-  },
-
   topArea: {
+    paddingTop: 45,
+    paddingHorizontal: 28,
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 18,
-  },
-
-  logoArea: {
-    width: 105,
-    height: 86,
-    alignItems: "center",
-    justifyContent: "center",
+    marginBottom: 16,
   },
 
   logo: {
-    width: 105,
-    height: 86,
+    width: 95,
+    height: 75,
   },
 
   searchBox: {
@@ -168,61 +271,85 @@ const styles = StyleSheet.create({
     color: "#333333",
   },
 
-  mapPlaceholder: {
-    width: "100%",
-    height: 390,
-    backgroundColor: "#E8E8E8",
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: "#D0D0D0",
+  mapArea: {
+    marginHorizontal: 28,
+    height: 460,
+    borderRadius: 18,
     overflow: "hidden",
+    backgroundColor: "#E8E8E8",
+  },
+
+  map: {
+    width: "100%",
+    height: "100%",
+  },
+
+  loadingBox: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 24,
   },
 
-  mapText: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: "#9A9A9A",
-  },
-
-  marker: {
-    position: "absolute",
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: "#F28C2E",
-    borderWidth: 3,
-    borderColor: "#FFFFFF",
+  loadingText: {
+    marginTop: 12,
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#555555",
   },
 
   placeCardArea: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 10,
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 110,
+  },
+
+  placeCardContent: {
+    paddingHorizontal: 28,
   },
 
   placeCard: {
-    flex: 1,
+    width: width * 0.36,
     height: 150,
     borderRadius: 18,
     overflow: "hidden",
-    backgroundColor: "#D9D9D9",
+    backgroundColor: "#FFFFF4",
+    marginRight: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 4,
+    elevation: 5,
   },
 
   cardImagePlaceholder: {
-    flex: 1,
-    backgroundColor: "#8D979F",
+    height: 58,
+    backgroundColor: "#EAF1E4",
     alignItems: "center",
-    justifyContent: "flex-end",
-    paddingBottom: 18,
+    justifyContent: "center",
+  },
+
+  cardTextArea: {
+    padding: 8,
   },
 
   cardTitle: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "800",
+    color: "#333333",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+
+  cardAddress: {
+    marginTop: 3,
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#555555",
+  },
+
+  cardMood: {
+    marginTop: 4,
+    fontSize: 10,
+    color: "#777777",
   },
 
   bottomNav: {
@@ -240,10 +367,10 @@ const styles = StyleSheet.create({
   },
 
   navButton: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    backgroundColor: "#FFE08A",
+    width: 66,
+    height: 66,
+    borderRadius: 33,
+    backgroundColor: "#FFDC74",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -253,7 +380,7 @@ const styles = StyleSheet.create({
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.22,
-    shadowRadius: 5,
+    shadowRadius: 4,
     elevation: 5,
   },
 });
