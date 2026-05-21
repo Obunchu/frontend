@@ -5,7 +5,7 @@ import { Image, SafeAreaView, StyleSheet, View } from "react-native";
 export default function IndexScreen() {
   useEffect(() => {
     const timer = setTimeout(() => {
-      router.replace("/home");
+      router.replace("/login");
     }, 2000);
 
     return () => clearTimeout(timer);
