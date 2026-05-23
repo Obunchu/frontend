@@ -66,6 +66,9 @@ export default function HomeScreen() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [profileMenuVisible, setProfileMenuVisible] = useState(false);
+  const [profileEditMenuVisible, setProfileEditMenuVisible] = useState(false);
+  const [accountMenuVisible, setAccountMenuVisible] = useState(false);
 
   const handleCardScroll = (event: any) => {
     const scrollX = event.nativeEvent.contentOffset.x;
@@ -125,10 +128,17 @@ export default function HomeScreen() {
             resizeMode="contain"
           />
 
-          <View style={styles.profileArea}>
+          <TouchableOpacity
+            style={styles.profileArea}
+            onPress={() => {
+              setProfileMenuVisible(!profileMenuVisible);
+              setProfileEditMenuVisible(false);
+            }}
+            activeOpacity={0.75}
+          >
             <Ionicons name="person-circle-outline" size={48} color="#263A56" />
             <Text style={styles.profileName}>수정님</Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.sectionTitleRow}>
@@ -247,6 +257,124 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </ScrollView>
 
+      {profileMenuVisible && (
+        <>
+          <TouchableOpacity
+            style={styles.profileMenuBackdrop}
+            onPress={() => {
+              setProfileMenuVisible(false);
+              setProfileEditMenuVisible(false);
+              setAccountMenuVisible(false);
+            }}
+            activeOpacity={1}
+          />
+
+          <View style={styles.profileMenu}>
+            <View style={styles.profileMenuHeader}>
+              <View style={styles.menuIconBox}>
+                <Ionicons name="person-circle-outline" size={42} color="#263A56" style={styles.menuIconShadow}/>
+              </View>
+              <Text style={styles.profileMenuName}>수정</Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.profileMenuItem}
+              activeOpacity={0.75}
+              onPress={() => setProfileEditMenuVisible(!profileEditMenuVisible)}
+            >
+              <View style={styles.menuIconBox}>
+                <Ionicons name="person-outline" size={28} color="#263A56" style={styles.menuIconShadow} />
+              </View>
+              <Text style={styles.profileMenuText}>프로필 편집</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.profileMenuItem}
+              activeOpacity={0.75}
+              onPress={() => {
+                setAccountMenuVisible(!accountMenuVisible);
+                setProfileEditMenuVisible(false);
+              }}
+            >
+              <View style={styles.menuIconBox}>
+                <Ionicons
+                  name="person-circle-outline" size={32} color="#263A56" style={styles.menuIconShadow} />
+              </View>
+              <Text style={styles.profileMenuText}>계정 관리</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.profileMenuItem} activeOpacity={0.75}>
+              <View style={styles.menuIconBox}>
+                <Ionicons name="chatbox-ellipses-outline" size={28} color="#263A56" style={styles.menuIconShadow} />
+              </View>
+              <Text style={styles.profileMenuText}>피드백 보내기</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.profileMenuItem} activeOpacity={0.75}>
+              <View style={styles.menuIconBox}>
+                <Ionicons name="information-circle-outline" size={30} color="#263A56" style={styles.menuIconShadow} />
+              </View>
+              <Text style={styles.profileMenuText}>사용 가이드</Text>
+            </TouchableOpacity>
+          </View>
+
+          {profileEditMenuVisible && (
+            <View style={styles.profileEditMenu}>
+              <View style={styles.profileEditMenuItem}>
+                <View style={styles.menuIconBox}>
+                  <Ionicons name="person-outline" size={28} color="#263A56" style={styles.menuIconShadow} />
+                </View>
+                <Text style={styles.profileMenuText}>프로필 편집</Text>
+              </View>
+
+              <TouchableOpacity style={styles.profileEditOption} activeOpacity={0.75}>
+                <Text style={styles.profileEditOptionText}>이름 변경</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.profileEditOption} activeOpacity={0.75}>
+                <Text style={styles.profileEditOptionText}>프로필 사진 변경</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.profileEditOption} activeOpacity={0.75}>
+                <Text style={styles.profileEditOptionText}>프로필 사진 삭제</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {accountMenuVisible && (
+            <View style={styles.accountMenu}>
+              <View style={styles.accountMenuItem}>
+                <View style={styles.menuIconBox}>
+                  <Ionicons
+                    name="person-circle-outline"
+                    size={32}
+                    color="#263A56"
+                    style={styles.menuIconShadow}
+                  />
+                </View>
+                <Text style={styles.profileMenuText}>계정 관리</Text>
+              </View>
+
+              <TouchableOpacity style={styles.accountOption} activeOpacity={0.75}>
+                <Text style={styles.accountOptionText}>로그아웃</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.accountOption} activeOpacity={0.75}>
+                <Text style={styles.accountOptionText}>백업 이메일 추가</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.accountOption} activeOpacity={0.75}>
+                <Text style={styles.accountOptionText}>회원 탈퇴</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.accountOption} activeOpacity={0.75}>
+                <Text style={styles.accountOptionText}>about</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </>
+      )}
+
       <View style={styles.bottomNav}>
         <NavButton icon="home-outline" active onPress={() => router.push("/home")} />
         <NavButton icon="location-outline" onPress={() => router.push("/map")} />
@@ -310,6 +438,148 @@ const styles = StyleSheet.create({
     color: "#333333",
     marginTop: 2,
   },
+
+
+  profileMenuBackdrop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 20,
+  },
+
+  profileMenu: {
+    position: "absolute",
+    top: 86,
+    right: 18,
+    width: 200,
+    height: 252,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 255, 244, 0.85)",
+    paddingTop: 16,
+    paddingHorizontal: 17,
+    zIndex: 30,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.16,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+
+  profileMenuHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 18,
+  },
+
+  profileMenuName: {
+    fontSize: 22,
+    fontWeight: "900",
+    color: "#2C2C2C",
+  },
+
+  profileMenuItem: {
+    height: 42,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  menuIconBox: {
+    width: 42,
+    height: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 18,
+  },
+
+  menuIconShadow: {
+  textShadowColor: "rgba(38, 58, 86, 0.35)",
+  textShadowOffset: { width: 1.5, height: 2 },
+  textShadowRadius: 2.5,  
+  },  
+
+  profileMenuText: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#7A7A72",
+  },
+
+  profileEditMenu: {
+    position: "absolute",
+    top: 144,
+    right: 13,
+    width: 205,
+    height: 210,
+    borderRadius: 26,
+    backgroundColor: "rgba(255, 255, 244, 0.88)",
+    paddingTop: 18,
+    paddingLeft: 17,
+    paddingRight: 17,
+    zIndex: 40,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 7 },
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+
+  profileEditMenuItem: {
+    height: 42,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 14,
+  },
+
+  profileEditOption: {
+    height: 42,
+    justifyContent: "center",
+    paddingLeft: 20,
+  },
+
+  profileEditOptionText: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#7A7A72",
+  },
+
+  accountMenu: {
+  position: "absolute",
+  top: 186,
+  right: 13,
+  width: 205,
+  height: 250,
+  borderRadius: 26,
+  backgroundColor: "rgba(255, 255, 244, 0.88)",
+  paddingTop: 18,
+  paddingLeft: 17,
+  paddingRight: 17,
+  zIndex: 40,
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: 7 },
+  shadowOpacity: 0.16,
+  shadowRadius: 12,
+  elevation: 10,
+},
+
+accountMenuItem: {
+  height: 42,
+  flexDirection: "row",
+  alignItems: "center",
+  marginBottom: 14,
+},
+
+accountOption: {
+  height: 42,
+  justifyContent: "center",
+  paddingLeft: 20,
+},
+
+accountOptionText: {
+  fontSize: 16,
+  fontWeight: "800",
+  color: "#7A7A72",
+},
 
   sectionTitleRow: {
     flexDirection: "row",
