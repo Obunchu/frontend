@@ -31,6 +31,7 @@ type Place = {
   // 공공API에서 채워지는 필드
   title?: string;
   firstimage?: string | null;
+  overview?: string | null;
 };
 
 export default function ImageSearchScreen() {
@@ -54,6 +55,7 @@ export default function ImageSearchScreen() {
     setError(null);
 
     try {
+      
       // 1. 백엔드에 이미지 전송 → 추천 결과 수신
       const formData = new FormData();
       formData.append("file", {
@@ -81,10 +83,12 @@ export default function ImageSearchScreen() {
             const res  = await fetch(getTourImageUrl(place.content_id));
             const json = await res.json();
             const item = json.response.body.items.item[0];
+            console.log("overview:", item.overview);  // ← 추가
             return {
               ...place,
               title:      item.title      ?? place.place_name,
               firstimage: item.firstimage ?? null,
+              overview: item.overview ?? null
             };
           } catch {
             // 공공API 실패해도 나머지 정보는 표시
@@ -189,7 +193,7 @@ export default function ImageSearchScreen() {
 
                   {/* 캡션 */}
                   <Text style={styles.moodText} numberOfLines={2}>
-                    {place.caption}
+                    {place.overview}
                   </Text>
 
                   {/* 유사도 */}
