@@ -97,10 +97,9 @@ export default function KeywordResultScreen() {
       </ScrollView>
 
       <View style={styles.bottomNav}>
-        <NavButton icon="home-outline" active />
-        <NavButton icon="location-outline" />
-        <NavButton icon="heart-outline" />
-        <NavButton icon="chatbubbles-outline" />
+        <NavButton icon="home-outline" active onPress={() => router.push("/home")} />
+                <NavButton icon="location-outline" onPress={() => router.push("/map")} />
+                <NavButton icon="heart-outline" onPress={() => router.push("/bookmark")} />
       </View>
     </View>
   );
