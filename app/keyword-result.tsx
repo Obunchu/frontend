@@ -70,9 +70,24 @@ export default function KeywordResultScreen() {
                   <Text style={styles.placeholderText}>장소 이미지</Text>
                 </View>
 
-                <TouchableOpacity style={styles.arrowButton}>
-                  <Ionicons name="arrow-forward" size={30} color="#FFFFFF" />
-                </TouchableOpacity>
+                <TouchableOpacity 
+  style={styles.arrowButton}
+  activeOpacity={0.7}
+  onPress={() => {
+    router.push({
+      pathname: "/detail",
+      params: {
+        title: place.name,
+        firstimage: "", // 임시 가짜 데이터라 빈값 (fallback 이미지 노출)
+        overview: place.mood, // 가짜 데이터에 들어있는 설명을 본문으로 매핑
+        region: place.address,
+        sub_title: `${place.name}에서 느끼는 고요한 여유` // 정갈한 한 줄 요약
+      }
+    });
+  }}
+>
+  <Ionicons name="arrow-forward" size={30} color="#FFFFFF" />
+</TouchableOpacity>
 
                 <TouchableOpacity style={styles.heartButton}>
                   <Ionicons name="heart-outline" size={38} color="#FFD75E" />
