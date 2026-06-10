@@ -427,7 +427,6 @@ export default function MapScreen() {
         <NavButton icon="home-outline" onPress={() => router.push("/home")} />
         <NavButton icon="location-outline" active />
         <NavButton icon="heart-outline" onPress={() => router.push("/bookmark")}/>
-        <NavButton icon="chatbubbles-outline" />
       </View>
     </View>
   );

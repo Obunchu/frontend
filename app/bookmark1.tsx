@@ -67,7 +67,7 @@ export default function BookmarkScreen() {
                 mode === "list" && styles.activeModeText,
               ]}
             >
-              리스트형
+              리스트형v
             </Text>
           </TouchableOpacity>
 

@@ -3,12 +3,15 @@ import { router } from "expo-router";
 import { useState, useEffect } from "react";
 import {
     Image,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
     View,
 } from "react-native";
+// react-native-maps 라이브러리 추가
+import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 
 import * as SecureStore from 'expo-secure-store';
 
@@ -121,7 +124,7 @@ export default function BookmarkScreen() {
         {mode === "list" ? <BookmarkList places={bookmarkPlaces} /> : <BookmarkMap />}
       </ScrollView>
 
-{profileMenuVisible && (
+      {profileMenuVisible && (
         <>
           <TouchableOpacity
             style={styles.profileMenuBackdrop}
@@ -239,12 +242,11 @@ export default function BookmarkScreen() {
         </>
       )}
 
-            {/* 하단 네비게이션 */}
+      {/* 하단 네비게이션: 말풍선(커뮤니티) 제거 완료 */}
       <View style={styles.bottomNav}>
         <NavButton icon="home-outline" onPress={() => router.push("/home")} />
         <NavButton icon="location-outline" onPress={() => router.push("/map")} />
         <NavButton icon="heart-outline" active />
-        <NavButton icon="chatbubbles-outline" />
       </View>
     </View>
   );
@@ -301,12 +303,19 @@ function BookmarkList({ places }: { places: Bookmark[] }) {
 function BookmarkMap() {
   return (
     <View style={styles.mapModeArea}>
+      {/* 가짜 회색 박스를 실제 지도 컴포넌트로 변경 */}
       <View style={styles.mapPlaceholder}>
-        <Text style={styles.mapText}>북마크 지도 API 영역</Text>
-
-        <View style={[styles.marker, { top: "24%", left: "60%" }]} />
-        <View style={[styles.marker, { top: "58%", left: "22%" }]} />
-        <View style={[styles.marker, { top: "70%", left: "72%" }]} />
+        <MapView
+          style={StyleSheet.absoluteFillObject}
+          provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
+          initialRegion={{
+            latitude: 37.5665, // 서울 중심 기준
+            longitude: 126.978,
+            latitudeDelta: 0.16, // 세 마커가 넉넉히 다 보이도록 축척 조정
+            longitudeDelta: 0.16,
+          }}
+        >
+        </MapView>
       </View>
 
       <View style={styles.mapCard}>
@@ -665,16 +674,6 @@ accountOptionText: {
     fontSize: 24,
     fontWeight: "800",
     color: "#8C8C8C",
-  },
-
-  marker: {
-    position: "absolute",
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: "#F28C2E",
-    borderWidth: 3,
-    borderColor: "#FFFFFF",
   },
 
   mapCard: {

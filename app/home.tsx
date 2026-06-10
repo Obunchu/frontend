@@ -393,7 +393,6 @@ export default function HomeScreen() {
         <NavButton icon="home-outline" active onPress={() => router.push("/home")} />
         <NavButton icon="location-outline" onPress={() => router.push("/map")} />
         <NavButton icon="heart-outline" onPress={() => router.push("/bookmark")} />
-        <NavButton icon="chatbubbles-outline" />
       </View>
     </View>
   );
