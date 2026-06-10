@@ -41,6 +41,7 @@ export default function ImageSearchScreen() {
   const [error, setError]     = useState<string | null>(null);
   const [userId, setUserId] = useState("");
   const [nickname, setNickname] = useState("");
+  const [likedMap, setLikedMap] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     const loadUserInfo = async () => {
@@ -90,18 +91,25 @@ export default function ImageSearchScreen() {
   }
 
   const handleBookmark = async (place: Place) => {
-    if (!userId) return;
+  if (!userId) return;
 
-    await fetch(`${process.env.EXPO_PUBLIC_API_URL}/bookmarks/add`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_id: userId,
-        content_id: place.content_id,
-        place_name: place.place_name,
-      }),
-    });
-  };
+  const isLiked = likedMap[place.id];
+
+  setLikedMap((prev) => ({
+    ...prev,
+    [place.id]: !isLiked,
+  }));
+
+  await fetch(`${process.env.EXPO_PUBLIC_API_URL}/bookmarks/add`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      user_id: userId,
+      content_id: place.content_id,
+      place_name: place.place_name,
+    }),
+  });
+};
 
   return (
     <View style={styles.container}>
@@ -157,8 +165,12 @@ export default function ImageSearchScreen() {
             </View>
 
             {places.map((place, index) => (
-              <TouchableOpacity key={place.id} style={styles.listCard}>
-                {/* 관광지 이미지 */}
+              <TouchableOpacity key={place.id} style={styles.listCard}
+                onPress={() => router.push({pathname: "/detail", params: { place: JSON.stringify(place),
+      },
+    })
+  }
+>
                 {place.firstimage ? (
                   <Image
                     source={{ uri: place.firstimage }}
@@ -210,7 +222,11 @@ export default function ImageSearchScreen() {
                 {/* 우측 버튼 */}
                 <View style={styles.rightArea}>
                   <TouchableOpacity onPress={() => handleBookmark(place)}>
-                    <Ionicons name="heart-outline" size={34} color="#FFD75E" />
+                    <Ionicons
+  name={likedMap[place.id] ? "heart" : "heart-outline"}
+  size={34}
+  color={likedMap[place.id] ? "#FF4D6D" : "#FFD75E"}
+/>
                   </TouchableOpacity>
                   <Ionicons
                     name="chevron-forward"
@@ -229,8 +245,7 @@ export default function ImageSearchScreen() {
       <View style={styles.bottomNav}>
         <NavButton icon="home-outline" active onPress={() => router.push("/home")} />
         <NavButton icon="location-outline" onPress={() => router.push("/map")} />
-        <NavButton icon="heart-outline" />
-        <NavButton icon="chatbubbles-outline" />
+        <NavButton icon="heart-outline" onPress={() => router.push("/bookmark")} />
       </View>
     </View>
   );

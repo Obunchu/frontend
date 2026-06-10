@@ -27,16 +27,18 @@ type OverseasPlace = {
   mood: string;
   description: string;
   backgroundColor: string;
+  localImage: any;
 };
 
 const overseasPlaces: OverseasPlace[] = [
   {
     id: "1",
     country: "일본",
-    city: "교토시, 카엔지",
+    city: "교토",
     mood: "고즈넉한",
     description: "전통적이고 차분한 분위기",
     backgroundColor: "#DDECF8",
+    localImage: require("../assets/images/kyoto.jpg"),
   },
   {
     id: "2",
@@ -45,6 +47,7 @@ const overseasPlaces: OverseasPlace[] = [
     mood: "낭만적인",
     description: "감성적이고 로맨틱한 분위기",
     backgroundColor: "#F6E3E8",
+    localImage: require("../assets/images/paris.jpg"),
   },
   {
     id: "3",
@@ -53,6 +56,7 @@ const overseasPlaces: OverseasPlace[] = [
     mood: "청량한",
     description: "맑고 자연적인 분위기",
     backgroundColor: "#DFF1EA",
+    localImage: require("../assets/images/interlaken.jpg"),
   },
   {
     id: "4",
@@ -61,6 +65,7 @@ const overseasPlaces: OverseasPlace[] = [
     mood: "이국적인",
     description: "휴양지 느낌의 여유로운 분위기",
     backgroundColor: "#F8E7C8",
+    localImage: require("../assets/images/bali.jpg"),
   },
 ];
 
@@ -177,18 +182,13 @@ export default function HomeScreen() {
                 style={styles.overseasCard}
                 onPress={() => goToMoodResult(item.mood)}
               >
-                <View
-                  style={[
-                    styles.overseasImagePlaceholder,
-                    { backgroundColor: item.backgroundColor },
-                  ]}
-                >
-                  <Ionicons name="image-outline" size={78} color="#6FA8DC" />
-                  <Text style={styles.overseasMood}>#{item.mood}</Text>
-                  <Text style={styles.overseasDescription}>
-                    {item.description}
-                  </Text>
-                </View>
+                <View style={styles.overseasImagePlaceholder}>
+  <Image
+    source={item.localImage}
+    style={styles.overseasImage}
+    resizeMode="cover"
+  />
+</View>
 
                 <View style={styles.arrowButton}>
                   <Ionicons name="arrow-forward" size={34} color="#FFFFFF" />
@@ -617,6 +617,14 @@ accountOptionText: {
     paddingRight: 80,
     paddingVertical: 8,
   },
+
+overseasImage: {
+  width: "100%",
+  height: "100%",
+  borderRadius: 26,
+  position: "absolute",
+},
+
 
   overseasCard: {
     width: CARD_WIDTH,
