@@ -28,15 +28,37 @@ export default function SignupScreen() {
 
   const canSignup = nickname.length > 0 && id.length > 0 && isPasswordValid;
 
-  const handleSignup = () => {
-    if (!canSignup) return;
-
-    Alert.alert("회원가입 완료", "로그인 화면으로 이동합니다.", [
-      {
-        text: "확인",
-        onPress: () => router.replace("/login"),
-      },
-    ]);
+  const handleSignup = async () => {
+    try {
+      const response = await fetch(
+        `${process.env.EXPO_PUBLIC_API_URL}/signup`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            user_id: id,
+            nickname,
+            password,
+          }),
+        }
+      );
+  
+      const data = await response.json();
+  
+      if (!response.ok) {
+        alert(data.detail);
+        return;
+      }
+  
+      alert("회원가입 성공!");
+      router.replace("/login");
+  
+    } catch (error) {
+      console.error(error);
+      alert("서버 연결 실패");
+    }
   };
 
   return (

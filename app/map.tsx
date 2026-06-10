@@ -6,7 +6,6 @@ import {
   ActivityIndicator,
   Dimensions,
   Image,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,41 +15,104 @@ import {
 } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE, Region } from "react-native-maps";
 
+import * as SecureStore from 'expo-secure-store';
+
 const { width } = Dimensions.get("window");
 
 type Place = {
-  id: string;
-  name: string;
-  address: string;
+  content_id: string;
+  place_name: string;
   latitude: number;
   longitude: number;
-  mood: string;
+  distance_km: number;
+  address: string;
+  firstimage: string;
 };
 
-const places: Place[] = [
+
+const PASTEL_MAP_STYLE = [
+  { elementType: "geometry", stylers: [{ color: "#f5f0e8" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#8b7355" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#fdf8f0" }] },
   {
-    id: "1",
-    name: "낙산공원",
-    address: "서울 종로구 낙산길 41",
-    latitude: 37.5806,
-    longitude: 127.0072,
-    mood: "야경과 성곽길이 어울리는 산책 장소",
+    featureType: "administrative",
+    elementType: "geometry.stroke",
+    stylers: [{ color: "#d4c4a8" }],
   },
   {
-    id: "2",
-    name: "성북천",
-    address: "서울 성북구 동소문동",
-    latitude: 37.5892,
-    longitude: 127.0095,
-    mood: "조용하게 걷기 좋은 산책로",
+    featureType: "administrative.land_parcel",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#b8a898" }],
   },
   {
-    id: "3",
-    name: "개운산",
-    address: "서울 성북구 돈암동",
-    latitude: 37.5964,
-    longitude: 127.0242,
-    mood: "자연과 전망이 어우러진 장소",
+    featureType: "landscape.natural",
+    elementType: "geometry",
+    stylers: [{ color: "#e8f0d8" }],
+  },
+  {
+    featureType: "poi",
+    elementType: "geometry",
+    stylers: [{ color: "#dcecd4" }],
+  },
+  {
+    featureType: "poi",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#8b9e78" }],
+  },
+  {
+    featureType: "poi.park",
+    elementType: "geometry.fill",
+    stylers: [{ color: "#c8e0b4" }],
+  },
+  {
+    featureType: "poi.park",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#7a9e68" }],
+  },
+  {
+    featureType: "road",
+    elementType: "geometry",
+    stylers: [{ color: "#ffffff" }],
+  },
+  {
+    featureType: "road",
+    elementType: "geometry.stroke",
+    stylers: [{ color: "#e8ddd0" }],
+  },
+  {
+    featureType: "road.highway",
+    elementType: "geometry",
+    stylers: [{ color: "#fce8c8" }],
+  },
+  {
+    featureType: "road.highway",
+    elementType: "geometry.stroke",
+    stylers: [{ color: "#f0d4a8" }],
+  },
+  {
+    featureType: "road.highway",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#a0845c" }],
+  },
+  {
+    featureType: "transit",
+    elementType: "geometry",
+    stylers: [{ color: "#e8e0d4" }],
+  },
+  {
+    featureType: "transit.station",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#a09080" }],
+  },
+  {
+    featureType: "water",
+    elementType: "geometry.fill",
+    stylers: [{ color: "#b8d8e8" }],
+  },
+  {
+    featureType: "water",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#7098b0" }],
   },
 ];
 
@@ -61,6 +123,19 @@ export default function MapScreen() {
   const [profileMenuVisible, setProfileMenuVisible] = useState(false);
   const [profileEditMenuVisible, setProfileEditMenuVisible] = useState(false);
   const [accountMenuVisible, setAccountMenuVisible] = useState(false);
+  const [userId, setUserId] = useState("");
+  const [nickname, setNickname] = useState("");
+  const [nearbyPlaces, setNearbyPlaces] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadUserInfo = async () => {
+      const userId = await SecureStore.getItemAsync("user_id");
+      const nickname = await SecureStore.getItemAsync("nickname");
+      if (userId) setUserId(userId);
+      if (nickname) setNickname(nickname);
+    };
+    loadUserInfo();
+  }, []);
 
   useEffect(() => {
     getCurrentLocation();
@@ -81,13 +156,23 @@ export default function MapScreen() {
       }
 
       const location = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = location.coords;
 
       setRegion({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
+        latitude,
+        longitude,
         latitudeDelta: 0.035,
         longitudeDelta: 0.035,
       });
+
+      // 근처 장소 불러오기
+      const res = await fetch(
+        `${process.env.EXPO_PUBLIC_API_URL}/places/nearby?lat=${latitude}&lng=${longitude}&radius_km=1.0`
+      );
+      
+      const data = await res.json();
+      setNearbyPlaces(data);
+
     } catch (error) {
       setRegion({
         latitude: 37.5665,
@@ -99,6 +184,17 @@ export default function MapScreen() {
       setLoading(false);
     }
   };
+
+
+  const places: Place[] = nearbyPlaces.map((item) => ({
+    place_name: item.place_name,
+    content_id: String(item.content_id),
+    latitude: item.latitude,
+    longitude: item.longitude,
+    distance_km: item.distance_km,
+    address: item.address,
+    firstimage: item.firstimage
+  }));
 
   const moveToPlace = (place: Place) => {
     const nextRegion = {
@@ -140,7 +236,7 @@ export default function MapScreen() {
           activeOpacity={0.75}
         >
           <Ionicons name="person-circle-outline" size={48} color="#263A56" />
-          <Text style={styles.profileName}>수정님</Text>
+          <Text style={styles.profileName}>{nickname}님</Text>
         </TouchableOpacity>
       </View>
 
@@ -154,21 +250,20 @@ export default function MapScreen() {
           <MapView
             ref={mapRef}
             style={styles.map}
-            provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
+            provider={PROVIDER_GOOGLE}
             initialRegion={region}
             showsUserLocation
             showsMyLocationButton
+            customMapStyle={PASTEL_MAP_STYLE}
           >
             {places.map((place) => (
               <Marker
-                key={place.id}
+                key={place.content_id}
                 coordinate={{
                   latitude: place.latitude,
                   longitude: place.longitude,
                 }}
-                title={place.name}
-                description={place.address}
-                pinColor="#F28C2E"
+                title={place.place_name}
               />
             ))}
           </MapView>
@@ -183,19 +278,27 @@ export default function MapScreen() {
         >
           {places.map((place) => (
             <TouchableOpacity
-              key={place.id}
+              key={place.content_id}
               style={styles.placeCard}
               onPress={() => moveToPlace(place)}
               activeOpacity={0.85}
             >
-              <View style={styles.cardImagePlaceholder}>
-                <Ionicons name="image-outline" size={36} color="#6FA8DC" />
-              </View>
+
+              {place.firstimage ? (
+                <Image
+                  source={{ uri: place.firstimage }}
+                  style={styles.cardImage}
+                />
+              ) : (
+                <View style={styles.cardImagePlaceholder}>
+                  <Ionicons name="image-outline" size={36} color="#6FA8DC" />
+                </View>
+              )}
 
               <View style={styles.cardTextArea}>
-                <Text style={styles.cardTitle}>{place.name}</Text>
-                <Text style={styles.cardAddress}>{place.address}</Text>
-                <Text style={styles.cardMood}>{place.mood}</Text>
+                <Text style={styles.cardTitle}>{place.place_name}</Text>
+                <Text style={styles.cardAddress}>주소: {place.address}</Text>
+                <Text style={styles.cardDistance}>{place.distance_km*1000}m 떨어진 거리에 있어요!</Text>
               </View>
             </TouchableOpacity>
           ))}
@@ -580,7 +683,7 @@ accountOptionText: {
   },
 
   placeCard: {
-    width: width * 0.36,
+    width: width * 0.4,
     height: 150,
     borderRadius: 18,
     overflow: "hidden",
@@ -615,6 +718,13 @@ accountOptionText: {
     fontSize: 10,
     fontWeight: "700",
     color: "#555555",
+  },
+
+  cardDistance: {
+    marginTop: 3,
+    fontSize: 10,
+    fontWeight: "900",
+    color: "#ffc374",
   },
 
   cardMood: {
@@ -653,5 +763,10 @@ accountOptionText: {
     shadowOpacity: 0.22,
     shadowRadius: 4,
     elevation: 5,
+  },
+
+  cardImage: {
+    height: 58,
+    width: "100%",
   },
 });

@@ -1,7 +1,7 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -13,6 +13,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+import * as SecureStore from 'expo-secure-store';
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = width * 0.78;
@@ -69,6 +71,18 @@ export default function HomeScreen() {
   const [profileMenuVisible, setProfileMenuVisible] = useState(false);
   const [profileEditMenuVisible, setProfileEditMenuVisible] = useState(false);
   const [accountMenuVisible, setAccountMenuVisible] = useState(false);
+  const [userId, setUserId] = useState("");
+  const [nickname, setNickname] = useState("");
+
+  useEffect(() => {
+    const loadUserInfo = async () => {
+      const userId = await SecureStore.getItemAsync("user_id");
+      const nickname = await SecureStore.getItemAsync("nickname");
+      if (userId) setUserId(userId);
+      if (nickname) setNickname(nickname);
+    };
+    loadUserInfo();
+  }, []);
 
   const handleCardScroll = (event: any) => {
     const scrollX = event.nativeEvent.contentOffset.x;
@@ -137,12 +151,12 @@ export default function HomeScreen() {
             activeOpacity={0.75}
           >
             <Ionicons name="person-circle-outline" size={48} color="#263A56" />
-            <Text style={styles.profileName}>수정님</Text>
+            <Text style={styles.profileName}>{nickname}님</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.sectionTitleRow}>
-          <MaterialCommunityIcons name="cable-car" size={27} color="#2C2C2C" />
+          <MaterialCommunityIcons size={27} color="#2C2C2C" />
           <Text style={styles.sectionTitle}>오늘의 분위기 여행지 추천</Text>
         </View>
 

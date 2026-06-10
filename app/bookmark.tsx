@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
     Image,
     ScrollView,
@@ -10,31 +10,53 @@ import {
     View,
 } from "react-native";
 
+import * as SecureStore from 'expo-secure-store';
+
 type BookmarkMode = "list" | "map";
 
-const bookmarks = [
-  {
-    id: "1",
-    name: "덕수궁 돌담길",
-    address: "서울 중구 세종대로19길 24 영국대사관",
-  },
-  {
-    id: "2",
-    name: "북서울꿈의숲",
-    address: "서울 강북구 월계로 173",
-  },
-  {
-    id: "3",
-    name: "반포한강공원",
-    address: "서울 서초구 신반포로11길 40",
-  },
-];
+type Bookmark = {
+  place_name: string;
+  content_id: number;
+  created_at: string;
+  firstimage: string | null;
+};
 
 export default function BookmarkScreen() {
+
   const [mode, setMode] = useState<BookmarkMode>("list");
   const [profileMenuVisible, setProfileMenuVisible] = useState(false);
   const [profileEditMenuVisible, setProfileEditMenuVisible] = useState(false);
   const [accountMenuVisible, setAccountMenuVisible] = useState(false);
+
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+  const [userId, setUserId] = useState("");
+  const [nickname, setNickname] = useState("");
+
+  useEffect(() => {
+    const loadAndFetch = async () => {
+      const userId = await SecureStore.getItemAsync("user_id");
+      const nickname = await SecureStore.getItemAsync("nickname");
+      if (userId) setUserId(userId);
+      if (nickname) setNickname(nickname);
+
+      if (userId){
+        const res = await fetch(
+          `${process.env.EXPO_PUBLIC_API_URL}/bookmarks/find?user_id=${userId}`
+        );
+
+        const data = await res.json();
+        setBookmarks(Array.isArray(data.results) ? data.results : []);
+      }
+    };
+    loadAndFetch();
+  }, []);
+
+  const bookmarkPlaces: Bookmark[] = bookmarks.map((item) => ({
+    place_name: item.place_name,
+    content_id: item.content_id,
+    created_at: item.created_at,
+    firstimage: item.firstimage
+  }));
 
   return (
     <View style={styles.container}>
@@ -65,7 +87,7 @@ export default function BookmarkScreen() {
             activeOpacity={0.75}
           >
             <Ionicons name="person-circle-outline" size={44} color="#263A56" />
-            <Text style={styles.profileName}>수정님</Text>
+            <Text style={styles.profileName}>{nickname}님</Text>
           </TouchableOpacity>
         </View>
 
@@ -96,7 +118,7 @@ export default function BookmarkScreen() {
           </TouchableOpacity>
         </View>
 
-        {mode === "list" ? <BookmarkList /> : <BookmarkMap />}
+        {mode === "list" ? <BookmarkList places={bookmarkPlaces} /> : <BookmarkMap />}
       </ScrollView>
 
 {profileMenuVisible && (
@@ -228,14 +250,27 @@ export default function BookmarkScreen() {
   );
 }
 
-function BookmarkList() {
+function BookmarkList({ places }: { places: Bookmark[] }) {
+  if (places.length === 0) {
+    return (
+      <View style={styles.emptyArea}>
+        <Ionicons name="heart-outline" size={48} color="#CCCCCC" />
+        <Text style={styles.emptyText}>아직 북마크한 장소가 없어요</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.listArea}>
-      {bookmarks.map((item) => (
-        <View key={item.id} style={styles.bookmarkCard}>
-          <View style={styles.imagePlaceholder}>
-            <Text style={styles.imageText}>장소 이미지</Text>
-          </View>
+      {places.map((item) => (
+        <View key={item.content_id} style={styles.bookmarkCard}>
+            {item.firstimage ? (
+              <Image source={{ uri: item.firstimage }} style={styles.imagePlaceholder} />
+            ) : (
+              <View style={styles.imagePlaceholder}>
+                <Text style={styles.imageText}>장소 이미지</Text>
+              </View>
+            )}
 
           <TouchableOpacity style={styles.heartButton}>
             <Ionicons name="heart" size={34} color="#F28C2E" />
@@ -244,11 +279,13 @@ function BookmarkList() {
           <View style={styles.cardBottom}>
             <View style={styles.placeNameRow}>
               <Ionicons name="location" size={28} color="#F28C2E" />
-              <Text style={styles.placeName}>{item.name}</Text>
+              <Text style={styles.placeName}>{item.place_name}</Text>
             </View>
 
             <View style={styles.addressBadge}>
-              <Text style={styles.addressText}>{item.address}</Text>
+              <Text style={styles.addressText}>
+                {new Date(item.created_at).toLocaleDateString("ko-KR")}
+              </Text>
             </View>
 
             <TouchableOpacity style={styles.arrowButton}>
@@ -508,6 +545,7 @@ accountOptionText: {
   modeTabs: {
     flexDirection: "row",
     alignItems: "center",
+    marginTop: 14,
     marginBottom: 14,
   },
 
@@ -720,5 +758,16 @@ accountOptionText: {
     shadowOpacity: 0.22,
     shadowRadius: 5,
     elevation: 5,
+  },
+  emptyArea: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingTop: 80,
+    gap: 12,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: "#AAAAAA",
+    fontWeight: "600",
   },
 });

@@ -13,10 +13,11 @@ import {
   View,
 } from "react-native";
 
+import * as SecureStore from 'expo-secure-store';
+
 export default function LoginScreen() {
   const [id, setId] = useState("");
   const [password, setPassword] = useState("");
-  const [autoLogin, setAutoLogin] = useState(false);
   const [securePassword, setSecurePassword] = useState(true);
 
   const isPasswordValid =
@@ -25,9 +26,39 @@ export default function LoginScreen() {
     /[a-zA-Z]/.test(password) &&
     /[^a-zA-Z0-9]/.test(password);
 
-  const handleLogin = () => {
-    router.replace("/home");
-  };
+    const handleLogin = async () => {
+      try {
+        const response = await fetch(
+          `${process.env.EXPO_PUBLIC_API_URL}/login`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              user_id: id,
+              password,
+            }),
+          }
+        );
+    
+        const data = await response.json();
+    
+        if (!response.ok) {
+          alert(data.detail);
+          return;
+        }
+    
+        await SecureStore.setItemAsync("user_id", String(data.user_id));
+        await SecureStore.setItemAsync("nickname", String(data.nickname));
+
+        router.replace("/home");
+            
+      } catch (error) {
+        console.error(error);
+        alert("서버 연결 실패");
+      }
+    };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -79,20 +110,7 @@ export default function LoginScreen() {
   </Text>
 )}
 
-          <TouchableOpacity
-            style={styles.autoLoginRow}
-            onPress={() => setAutoLogin((prev) => !prev)}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.checkbox, autoLogin && styles.checkedBox]}>
-              {autoLogin && (
-                <Ionicons name="checkmark" size={18} color="#263A56" />
-              )}
-            </View>
-            <Text style={styles.autoLoginText}>자동 로그인 허용</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
+  <TouchableOpacity
   style={[
     styles.loginButton,
     (!id || !isPasswordValid) && styles.disabledLoginButton,
@@ -191,12 +209,6 @@ const styles = StyleSheet.create({
     color: "#FF6B4A",
   },
 
-  autoLoginRow: {
-    marginTop: 20,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
   checkbox: {
     width: 24,
     height: 24,
@@ -210,13 +222,6 @@ const styles = StyleSheet.create({
 
   checkedBox: {
     backgroundColor: "#FFD75E",
-  },
-
-  autoLoginText: {
-    marginLeft: 8,
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#333333",
   },
 
   loginButton: {

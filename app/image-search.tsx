@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import * as SecureStore from 'expo-secure-store';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -28,8 +29,6 @@ type Place = {
   caption: string;
   content_id: number;
   similarity: number;
-  // 공공API에서 채워지는 필드
-  title?: string;
   firstimage?: string | null;
   overview?: string | null;
 };
@@ -40,23 +39,28 @@ export default function ImageSearchScreen() {
   const [places, setPlaces]   = useState<Place[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
+  const [userId, setUserId] = useState("");
+  const [nickname, setNickname] = useState("");
+
+  useEffect(() => {
+    const loadUserInfo = async () => {
+      const userId = await SecureStore.getItemAsync("user_id");
+      const nickname = await SecureStore.getItemAsync("nickname");
+      if (userId) setUserId(userId);
+      if (nickname) setNickname(nickname);
+    };
+    loadUserInfo();
+  }, []);
 
   useEffect(() => {
     if (imageUri) fetchRecommendations(imageUri);
   }, [imageUri]);
-
-  // 공공API URL 구성 (content_id 기반) - 본인 URL로 교체
-  function getTourImageUrl(contentId: number): string {
-    return `https://apis.data.go.kr/B551011/KorService2/detailCommon2?serviceKey=a5d1b79ac819b6e1f8460a9be32f29e190097b5266041df2ec56093f79254c1a&MobileOS=ETC&MobileApp=AppTest&_type=json&contentId=${contentId}&numOfRows=1&pageNo=1`;
-  }
 
   async function fetchRecommendations(uri: string) {
     setLoading(true);
     setError(null);
 
     try {
-      
-      // 1. 백엔드에 이미지 전송 → 추천 결과 수신
       const formData = new FormData();
       formData.append("file", {
         uri,
@@ -75,29 +79,8 @@ export default function ImageSearchScreen() {
       }
 
       const data = await response.json();
+      setPlaces(data.results);  // 백엔드가 title, firstimage, overview 다 포함해서 내려줌
 
-      // 2. 각 관광지에 대해 공공API 호출 → title, firstimage 추가
-      const enriched: Place[] = await Promise.all(
-        data.results.map(async (place: Place) => {
-          try {
-            const res  = await fetch(getTourImageUrl(place.content_id));
-            const json = await res.json();
-            const item = json.response.body.items.item[0];
-            console.log("overview:", item.overview);  // ← 추가
-            return {
-              ...place,
-              title:      item.title      ?? place.place_name,
-              firstimage: item.firstimage ?? null,
-              overview: item.overview ?? null
-            };
-          } catch {
-            // 공공API 실패해도 나머지 정보는 표시
-            return { ...place, title: place.place_name, firstimage: null };
-          }
-        })
-      );
-
-      setPlaces(enriched);
     } catch (e: any) {
       setError(e.message ?? "알 수 없는 오류");
       Alert.alert("오류", e.message ?? "추천을 불러오지 못했습니다.");
@@ -105,6 +88,20 @@ export default function ImageSearchScreen() {
       setLoading(false);
     }
   }
+
+  const handleBookmark = async (place: Place) => {
+    if (!userId) return;
+
+    await fetch(`${process.env.EXPO_PUBLIC_API_URL}/bookmarks/add`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: userId,
+        content_id: place.content_id,
+        place_name: place.place_name,
+      }),
+    });
+  };
 
   return (
     <View style={styles.container}>
@@ -119,7 +116,7 @@ export default function ImageSearchScreen() {
           <Text style={styles.title}>이미지 검색 결과</Text>
           <View style={styles.profileArea}>
             <Ionicons name="person-circle-outline" size={48} color="#263A56" />
-            <Text style={styles.profileName}>수정님</Text>
+            <Text style={styles.profileName}>{nickname}님</Text>
           </View>
         </View>
 
@@ -182,7 +179,7 @@ export default function ImageSearchScreen() {
                     </View>
                     <Ionicons name="location-sharp" size={20} color="#F28C2E" />
                     <Text style={styles.placeName} numberOfLines={1}>
-                      {place.title ?? place.place_name}
+                      {place.place_name}
                     </Text>
                   </View>
 
@@ -191,7 +188,7 @@ export default function ImageSearchScreen() {
                     <Text style={styles.addressText}>{place.region}</Text>
                   </View>
 
-                  {/* 캡션 */}
+                  {/* 개요 */}
                   <Text style={styles.moodText} numberOfLines={2}>
                     {place.overview}
                   </Text>
@@ -204,7 +201,7 @@ export default function ImageSearchScreen() {
                   {/* 태그 */}
                   <Text style={styles.tagText}>
                     {[place.primary_mood, place.secondary_mood, place.scene]
-                      .filter(Boolean)
+                      .filter((t) => t && t !== "nan")
                       .map((t) => `#${t}`)
                       .join(" ")}
                   </Text>
@@ -212,7 +209,7 @@ export default function ImageSearchScreen() {
 
                 {/* 우측 버튼 */}
                 <View style={styles.rightArea}>
-                  <TouchableOpacity>
+                  <TouchableOpacity onPress={() => handleBookmark(place)}>
                     <Ionicons name="heart-outline" size={34} color="#FFD75E" />
                   </TouchableOpacity>
                   <Ionicons
