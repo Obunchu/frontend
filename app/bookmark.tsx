@@ -1,19 +1,23 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
-    Image,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from "react-native";
 // react-native-maps 라이브러리 추가
-import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
 
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from "expo-secure-store";
 
 type BookmarkMode = "list" | "map";
 
@@ -25,7 +29,6 @@ type Bookmark = {
 };
 
 export default function BookmarkScreen() {
-
   const [mode, setMode] = useState<BookmarkMode>("list");
   const [profileMenuVisible, setProfileMenuVisible] = useState(false);
   const [profileEditMenuVisible, setProfileEditMenuVisible] = useState(false);
@@ -34,15 +37,27 @@ export default function BookmarkScreen() {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [userId, setUserId] = useState("");
   const [nickname, setNickname] = useState("");
+  const [profileImageUri, setProfileImageUri] = useState<string | null>(null);
+
+  const [nameChangeVisible, setNameChangeVisible] = useState(false);
+  const [newNickname, setNewNickname] = useState("");
+  const [changingNickname, setChangingNickname] = useState(false);
+
+  const [deleteAccountVisible, setDeleteAccountVisible] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   useEffect(() => {
     const loadAndFetch = async () => {
       const userId = await SecureStore.getItemAsync("user_id");
       const nickname = await SecureStore.getItemAsync("nickname");
+      const profileImageUri = await SecureStore.getItemAsync("profile_image_uri");
+
       if (userId) setUserId(userId);
       if (nickname) setNickname(nickname);
+      if (profileImageUri) setProfileImageUri(profileImageUri);
 
-      if (userId){
+      if (userId) {
         const res = await fetch(
           `${process.env.EXPO_PUBLIC_API_URL}/bookmarks/find?user_id=${userId}`
         );
@@ -51,14 +66,218 @@ export default function BookmarkScreen() {
         setBookmarks(Array.isArray(data.results) ? data.results : []);
       }
     };
+
     loadAndFetch();
   }, []);
+
+  const closeAllProfileMenus = () => {
+    setProfileMenuVisible(false);
+    setProfileEditMenuVisible(false);
+    setAccountMenuVisible(false);
+  };
+
+  const openNameChangeBox = () => {
+    setNewNickname(nickname);
+    setNameChangeVisible(true);
+    setDeleteAccountVisible(false);
+    closeAllProfileMenus();
+  };
+
+  const closeNameChangeBox = () => {
+    if (changingNickname) return;
+
+    setNameChangeVisible(false);
+    setNewNickname("");
+  };
+
+  const openDeleteAccountBox = () => {
+    setDeletePassword("");
+    setDeleteAccountVisible(true);
+    setNameChangeVisible(false);
+    closeAllProfileMenus();
+  };
+
+  const closeDeleteAccountBox = () => {
+    if (deletingAccount) return;
+
+    setDeleteAccountVisible(false);
+    setDeletePassword("");
+  };
+
+  const handleChangeNickname = async () => {
+    const trimmedNickname = newNickname.trim();
+
+    if (!trimmedNickname) {
+      Alert.alert("이름 변경", "변경할 이름을 입력해주세요.");
+      return;
+    }
+
+    if (!userId) {
+      Alert.alert(
+        "이름 변경 실패",
+        "로그인 정보를 찾을 수 없습니다. 다시 로그인해주세요."
+      );
+      return;
+    }
+
+    try {
+      setChangingNickname(true);
+
+      const response = await fetch(
+        `${process.env.EXPO_PUBLIC_API_URL}/users/${userId}/nickname`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "ngrok-skip-browser-warning": "true",
+          },
+          body: JSON.stringify({
+            nickname: trimmedNickname,
+          }),
+        }
+      );
+
+      const responseText = await response.text();
+
+      if (!response.ok) {
+        throw new Error(responseText || "이름 변경에 실패했습니다.");
+      }
+
+      setNickname(trimmedNickname);
+      await SecureStore.setItemAsync("nickname", trimmedNickname);
+
+      setNameChangeVisible(false);
+      setNewNickname("");
+
+      Alert.alert("이름 변경", "이름이 변경되었습니다.");
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "이름 변경 중 오류가 발생했습니다.";
+
+      Alert.alert("이름 변경 실패", message);
+    } finally {
+      setChangingNickname(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    const trimmedPassword = deletePassword.trim();
+
+    if (!trimmedPassword) {
+      Alert.alert("회원 탈퇴", "비밀번호를 입력해주세요.");
+      return;
+    }
+
+    if (!userId) {
+      Alert.alert(
+        "회원 탈퇴 실패",
+        "로그인 정보를 찾을 수 없습니다. 다시 로그인해주세요."
+      );
+      return;
+    }
+
+    try {
+      setDeletingAccount(true);
+
+      const response = await fetch(
+        `${process.env.EXPO_PUBLIC_API_URL}/users/${userId}`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            "ngrok-skip-browser-warning": "true",
+          },
+          body: JSON.stringify({
+            password: trimmedPassword,
+          }),
+        }
+      );
+
+      const responseText = await response.text();
+
+      if (!response.ok) {
+        throw new Error(responseText || "회원 탈퇴에 실패했습니다.");
+      }
+
+      await SecureStore.deleteItemAsync("user_id");
+      await SecureStore.deleteItemAsync("nickname");
+      await SecureStore.deleteItemAsync("profile_image_uri");
+
+      setUserId("");
+      setNickname("");
+      setProfileImageUri(null);
+      setDeletePassword("");
+      setDeleteAccountVisible(false);
+
+      Alert.alert("회원 탈퇴", "회원 탈퇴가 완료되었습니다.");
+      router.replace("/login");
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "회원 탈퇴 중 오류가 발생했습니다.";
+
+      Alert.alert("회원 탈퇴 실패", message);
+    } finally {
+      setDeletingAccount(false);
+    }
+  };
+
+  const changeProfilePhoto = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permission.granted) {
+      Alert.alert(
+        "사진 접근 권한",
+        "프로필 사진을 변경하려면 사진 접근 권한이 필요합니다."
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      const selectedImageUri = result.assets[0].uri;
+
+      setProfileImageUri(selectedImageUri);
+      await SecureStore.setItemAsync("profile_image_uri", selectedImageUri);
+
+      closeAllProfileMenus();
+    }
+  };
+
+  const deleteProfilePhoto = async () => {
+    if (!profileImageUri) {
+      return;
+    }
+
+    setProfileImageUri(null);
+    await SecureStore.deleteItemAsync("profile_image_uri");
+
+    closeAllProfileMenus();
+  };
+
+  const handleLogout = async () => {
+    closeAllProfileMenus();
+
+    await SecureStore.deleteItemAsync("user_id");
+    await SecureStore.deleteItemAsync("nickname");
+
+    router.replace("/login");
+  };
 
   const bookmarkPlaces: Bookmark[] = bookmarks.map((item) => ({
     place_name: item.place_name,
     content_id: item.content_id,
     created_at: item.created_at,
-    firstimage: item.firstimage
+    firstimage: item.firstimage,
   }));
 
   return (
@@ -68,7 +287,6 @@ export default function BookmarkScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* 상단 */}
         <View style={styles.topArea}>
           <View style={styles.logoArea}>
             <Image
@@ -89,12 +307,19 @@ export default function BookmarkScreen() {
             }}
             activeOpacity={0.75}
           >
-            <Ionicons name="person-circle-outline" size={44} color="#263A56" />
-            <Text style={styles.profileName}>{nickname}님</Text>
+            {profileImageUri ? (
+              <Image
+                source={{ uri: profileImageUri }}
+                style={styles.headerProfileImage}
+              />
+            ) : (
+              <Ionicons name="person-circle-outline" size={44} color="#263A56" />
+            )}
+
+            <Text style={styles.profileName}>{nickname || "수정"}님</Text>
           </TouchableOpacity>
         </View>
 
-        {/* 리스트형 / 지도형 탭 */}
         <View style={styles.modeTabs}>
           <TouchableOpacity onPress={() => setMode("list")}>
             <Text
@@ -121,36 +346,57 @@ export default function BookmarkScreen() {
           </TouchableOpacity>
         </View>
 
-        {mode === "list" ? <BookmarkList places={bookmarkPlaces} /> : <BookmarkMap />}
+        {mode === "list" ? (
+          <BookmarkList places={bookmarkPlaces} />
+        ) : (
+          <BookmarkMap />
+        )}
       </ScrollView>
 
       {profileMenuVisible && (
         <>
           <TouchableOpacity
             style={styles.profileMenuBackdrop}
-            onPress={() => {
-              setProfileMenuVisible(false);
-              setProfileEditMenuVisible(false);
-              setAccountMenuVisible(false);
-            }}
+            onPress={closeAllProfileMenus}
             activeOpacity={1}
           />
 
           <View style={styles.profileMenu}>
             <View style={styles.profileMenuHeader}>
               <View style={styles.menuIconBox}>
-                <Ionicons name="person-circle-outline" size={42} color="#263A56" style={styles.menuIconShadow}/>
+                {profileImageUri ? (
+                  <Image
+                    source={{ uri: profileImageUri }}
+                    style={styles.menuProfileImage}
+                  />
+                ) : (
+                  <Ionicons
+                    name="person-circle-outline"
+                    size={42}
+                    color="#263A56"
+                    style={styles.menuIconShadow}
+                  />
+                )}
               </View>
-              <Text style={styles.profileMenuName}>수정</Text>
+
+              <Text style={styles.profileMenuName}>{nickname || "수정"}</Text>
             </View>
 
             <TouchableOpacity
               style={styles.profileMenuItem}
               activeOpacity={0.75}
-              onPress={() => setProfileEditMenuVisible(!profileEditMenuVisible)}
+              onPress={() => {
+                setProfileEditMenuVisible(!profileEditMenuVisible);
+                setAccountMenuVisible(false);
+              }}
             >
               <View style={styles.menuIconBox}>
-                <Ionicons name="person-outline" size={28} color="#263A56" style={styles.menuIconShadow} />
+                <Ionicons
+                  name="person-outline"
+                  size={28}
+                  color="#263A56"
+                  style={styles.menuIconShadow}
+                />
               </View>
               <Text style={styles.profileMenuText}>프로필 편집</Text>
             </TouchableOpacity>
@@ -165,21 +411,35 @@ export default function BookmarkScreen() {
             >
               <View style={styles.menuIconBox}>
                 <Ionicons
-                  name="person-circle-outline" size={32} color="#263A56" style={styles.menuIconShadow} />
+                  name="person-circle-outline"
+                  size={32}
+                  color="#263A56"
+                  style={styles.menuIconShadow}
+                />
               </View>
               <Text style={styles.profileMenuText}>계정 관리</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.profileMenuItem} activeOpacity={0.75}>
               <View style={styles.menuIconBox}>
-                <Ionicons name="chatbox-ellipses-outline" size={28} color="#263A56" style={styles.menuIconShadow} />
+                <Ionicons
+                  name="chatbox-ellipses-outline"
+                  size={28}
+                  color="#263A56"
+                  style={styles.menuIconShadow}
+                />
               </View>
               <Text style={styles.profileMenuText}>피드백 보내기</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.profileMenuItem} activeOpacity={0.75}>
               <View style={styles.menuIconBox}>
-                <Ionicons name="information-circle-outline" size={30} color="#263A56" style={styles.menuIconShadow} />
+                <Ionicons
+                  name="information-circle-outline"
+                  size={30}
+                  color="#263A56"
+                  style={styles.menuIconShadow}
+                />
               </View>
               <Text style={styles.profileMenuText}>사용 가이드</Text>
             </TouchableOpacity>
@@ -189,20 +449,37 @@ export default function BookmarkScreen() {
             <View style={styles.profileEditMenu}>
               <View style={styles.profileEditMenuItem}>
                 <View style={styles.menuIconBox}>
-                  <Ionicons name="person-outline" size={28} color="#263A56" style={styles.menuIconShadow} />
+                  <Ionicons
+                    name="person-outline"
+                    size={28}
+                    color="#263A56"
+                    style={styles.menuIconShadow}
+                  />
                 </View>
                 <Text style={styles.profileMenuText}>프로필 편집</Text>
               </View>
 
-              <TouchableOpacity style={styles.profileEditOption} activeOpacity={0.75}>
+              <TouchableOpacity
+                style={styles.profileEditOption}
+                activeOpacity={0.75}
+                onPress={openNameChangeBox}
+              >
                 <Text style={styles.profileEditOptionText}>이름 변경</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.profileEditOption} activeOpacity={0.75}>
+              <TouchableOpacity
+                style={styles.profileEditOption}
+                activeOpacity={0.75}
+                onPress={changeProfilePhoto}
+              >
                 <Text style={styles.profileEditOptionText}>프로필 사진 변경</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.profileEditOption} activeOpacity={0.75}>
+              <TouchableOpacity
+                style={styles.profileEditOption}
+                activeOpacity={0.75}
+                onPress={deleteProfilePhoto}
+              >
                 <Text style={styles.profileEditOptionText}>프로필 사진 삭제</Text>
               </TouchableOpacity>
             </View>
@@ -210,27 +487,19 @@ export default function BookmarkScreen() {
 
           {accountMenuVisible && (
             <View style={styles.accountMenu}>
-              <View style={styles.accountMenuItem}>
-                <View style={styles.menuIconBox}>
-                  <Ionicons
-                    name="person-circle-outline"
-                    size={32}
-                    color="#263A56"
-                    style={styles.menuIconShadow}
-                  />
-                </View>
-                <Text style={styles.profileMenuText}>계정 관리</Text>
-              </View>
-
-              <TouchableOpacity style={styles.accountOption} activeOpacity={0.75}>
+              <TouchableOpacity
+                style={styles.accountOption}
+                activeOpacity={0.75}
+                onPress={handleLogout}
+              >
                 <Text style={styles.accountOptionText}>로그아웃</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.accountOption} activeOpacity={0.75}>
-                <Text style={styles.accountOptionText}>백업 이메일 추가</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.accountOption} activeOpacity={0.75}>
+              <TouchableOpacity
+                style={styles.accountOption}
+                activeOpacity={0.75}
+                onPress={openDeleteAccountBox}
+              >
                 <Text style={styles.accountOptionText}>회원 탈퇴</Text>
               </TouchableOpacity>
 
@@ -242,7 +511,114 @@ export default function BookmarkScreen() {
         </>
       )}
 
-      {/* 하단 네비게이션: 말풍선(커뮤니티) 제거 완료 */}
+      {nameChangeVisible && (
+        <KeyboardAvoidingView
+          style={styles.nameChangeOverlay}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <TouchableOpacity
+            style={styles.nameChangeBackdrop}
+            activeOpacity={1}
+            onPress={closeNameChangeBox}
+          />
+
+          <View style={styles.nameChangeBox}>
+            <Text style={styles.nameChangeTitle}>이름 편집</Text>
+            <Text style={styles.nameChangeDescription}>이름을 입력하세요</Text>
+
+            <TextInput
+              style={styles.nameChangeInput}
+              value={newNickname}
+              onChangeText={setNewNickname}
+              placeholder="변경할 이름"
+              placeholderTextColor="#B3AD93"
+              autoFocus
+              editable={!changingNickname}
+              returnKeyType="done"
+              onSubmitEditing={handleChangeNickname}
+            />
+
+            <View style={styles.nameChangeButtonRow}>
+              <TouchableOpacity
+                style={styles.nameChangeCancelButton}
+                activeOpacity={0.8}
+                onPress={closeNameChangeBox}
+                disabled={changingNickname}
+              >
+                <Text style={styles.nameChangeCancelText}>취소</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.nameChangeSubmitButton}
+                activeOpacity={0.8}
+                onPress={handleChangeNickname}
+                disabled={changingNickname}
+              >
+                <Text style={styles.nameChangeSubmitText}>
+                  {changingNickname ? "변경 중" : "변경"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      )}
+
+      {deleteAccountVisible && (
+        <KeyboardAvoidingView
+          style={styles.deleteAccountOverlay}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <TouchableOpacity
+            style={styles.deleteAccountBackdrop}
+            activeOpacity={1}
+            onPress={closeDeleteAccountBox}
+          />
+
+          <View style={styles.deleteAccountBox}>
+            <Text style={styles.deleteAccountDescription}>
+              탈퇴를 원하시면{"\n"}비밀번호를 입력해주세요.
+            </Text>
+
+            <TextInput
+              style={styles.deleteAccountInput}
+              value={deletePassword}
+              onChangeText={setDeletePassword}
+              placeholder=""
+              placeholderTextColor="#B3AD93"
+              autoFocus
+              editable={!deletingAccount}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="done"
+              onSubmitEditing={handleDeleteAccount}
+            />
+
+            <View style={styles.deleteAccountButtonRow}>
+              <TouchableOpacity
+                style={styles.deleteAccountCancelButton}
+                activeOpacity={0.8}
+                onPress={closeDeleteAccountBox}
+                disabled={deletingAccount}
+              >
+                <Text style={styles.deleteAccountCancelText}>취소</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.deleteAccountSubmitButton}
+                activeOpacity={0.8}
+                onPress={handleDeleteAccount}
+                disabled={deletingAccount}
+              >
+                <Text style={styles.deleteAccountSubmitText}>
+                  {deletingAccount ? "탈퇴 중" : "탈퇴"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      )}
+
       <View style={styles.bottomNav}>
         <NavButton icon="home-outline" onPress={() => router.push("/home")} />
         <NavButton icon="location-outline" onPress={() => router.push("/map")} />
@@ -266,13 +642,13 @@ function BookmarkList({ places }: { places: Bookmark[] }) {
     <View style={styles.listArea}>
       {places.map((item) => (
         <View key={item.content_id} style={styles.bookmarkCard}>
-            {item.firstimage ? (
-              <Image source={{ uri: item.firstimage }} style={styles.imagePlaceholder} />
-            ) : (
-              <View style={styles.imagePlaceholder}>
-                <Text style={styles.imageText}>장소 이미지</Text>
-              </View>
-            )}
+          {item.firstimage ? (
+            <Image source={{ uri: item.firstimage }} style={styles.imagePlaceholder} />
+          ) : (
+            <View style={styles.imagePlaceholder}>
+              <Text style={styles.imageText}>장소 이미지</Text>
+            </View>
+          )}
 
           <TouchableOpacity style={styles.heartButton}>
             <Ionicons name="heart" size={34} color="#F28C2E" />
@@ -303,26 +679,26 @@ function BookmarkList({ places }: { places: Bookmark[] }) {
 function BookmarkMap() {
   return (
     <View style={styles.mapModeArea}>
-      {/* 가짜 회색 박스를 실제 지도 컴포넌트로 변경 */}
       <View style={styles.mapPlaceholder}>
         <MapView
           style={StyleSheet.absoluteFillObject}
           provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
           initialRegion={{
-            latitude: 37.5665, // 서울 중심 기준
+            latitude: 37.5665,
             longitude: 126.978,
-            latitudeDelta: 0.16, // 세 마커가 넉넉히 다 보이도록 축척 조정
+            latitudeDelta: 0.16,
             longitudeDelta: 0.16,
           }}
-        >
-        </MapView>
+        />
       </View>
 
       <View style={styles.mapCard}>
         <View style={styles.mapCardImage}>
           <Text style={styles.mapCardTitle}>덕수궁 돌담길</Text>
           <View style={styles.mapAddressBadge}>
-            <Text style={styles.addressText}>서울 중구 세종대로19길 24 영국대사관</Text>
+            <Text style={styles.addressText}>
+              서울 중구 세종대로19길 24 영국대사관
+            </Text>
           </View>
         </View>
 
@@ -410,6 +786,15 @@ const styles = StyleSheet.create({
     color: "#333333",
   },
 
+  headerProfileImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: "#263A56",
+    backgroundColor: "#FFFDE8",
+  },
+
   profileMenuBackdrop: {
     position: "absolute",
     top: 0,
@@ -463,11 +848,20 @@ const styles = StyleSheet.create({
     marginRight: 18,
   },
 
+  menuProfileImage: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 2,
+    borderColor: "#263A56",
+    backgroundColor: "#FFFDE8",
+  },
+
   menuIconShadow: {
-  textShadowColor: "rgba(38, 58, 86, 0.35)",
-  textShadowOffset: { width: 1.5, height: 2 },
-  textShadowRadius: 2.5,  
-  },  
+    textShadowColor: "rgba(38, 58, 86, 0.35)",
+    textShadowOffset: { width: 1.5, height: 2 },
+    textShadowRadius: 2.5,
+  },
 
   profileMenuText: {
     fontSize: 16,
@@ -514,42 +908,256 @@ const styles = StyleSheet.create({
   },
 
   accountMenu: {
-  position: "absolute",
-  top: 186,
-  right: 13,
-  width: 205,
-  height: 250,
-  borderRadius: 26,
-  backgroundColor: "rgba(255, 255, 244, 0.88)",
-  paddingTop: 18,
-  paddingLeft: 17,
-  paddingRight: 17,
-  zIndex: 40,
-  shadowColor: "#000",
-  shadowOffset: { width: 0, height: 7 },
-  shadowOpacity: 0.16,
-  shadowRadius: 12,
-  elevation: 10,
-},
+    position: "absolute",
+    top: 186,
+    right: 13,
+    width: 205,
+    height: 150,
+    borderRadius: 26,
+    backgroundColor: "rgba(255, 255, 244, 0.88)",
+    paddingTop: 18,
+    paddingLeft: 17,
+    paddingRight: 17,
+    zIndex: 40,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 7 },
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
+    elevation: 10,
+  },
 
-accountMenuItem: {
-  height: 42,
-  flexDirection: "row",
-  alignItems: "center",
-  marginBottom: 14,
-},
+  accountOption: {
+    height: 40,
+    justifyContent: "center",
+    paddingLeft: 20,
+  },
 
-accountOption: {
-  height: 42,
-  justifyContent: "center",
-  paddingLeft: 20,
-},
+  accountOptionText: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#7A7A72",
+  },
 
-accountOptionText: {
-  fontSize: 16,
-  fontWeight: "800",
-  color: "#7A7A72",
-},
+  nameChangeOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 60,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  nameChangeBackdrop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+
+  nameChangeBox: {
+    width: "78%",
+    minHeight: 188,
+    borderRadius: 24,
+    backgroundColor: "rgba(255, 255, 244, 0.94)",
+    paddingTop: 22,
+    paddingHorizontal: 24,
+    paddingBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 7 },
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    elevation: 12,
+  },
+
+  nameChangeTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#2C2C2C",
+    marginBottom: 8,
+  },
+
+  nameChangeDescription: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#8A8677",
+    marginBottom: 13,
+  },
+
+  nameChangeInput: {
+    width: "100%",
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#FFF4BE",
+    borderWidth: 1,
+    borderColor: "#F2DF9B",
+    paddingHorizontal: 18,
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#333333",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+
+  nameChangeButtonRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 24,
+    marginTop: 20,
+  },
+
+  nameChangeCancelButton: {
+    width: 96,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#FFF6D1",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+
+  nameChangeSubmitButton: {
+    width: 96,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#FFF0B3",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+
+  nameChangeCancelText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#7A7A72",
+  },
+
+  nameChangeSubmitText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#7A7A72",
+  },
+
+  deleteAccountOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 65,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  deleteAccountBackdrop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+
+  deleteAccountBox: {
+    width: "78%",
+    minHeight: 160,
+    borderRadius: 24,
+    backgroundColor: "rgba(255, 255, 244, 0.94)",
+    paddingTop: 22,
+    paddingHorizontal: 24,
+    paddingBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 7 },
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    elevation: 12,
+  },
+
+  deleteAccountDescription: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#6F6A5E",
+    textAlign: "center",
+    lineHeight: 25,
+    marginBottom: 12,
+  },
+
+  deleteAccountInput: {
+    width: "100%",
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#FFF4BE",
+    borderWidth: 1,
+    borderColor: "#F2DF9B",
+    paddingHorizontal: 18,
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#333333",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+
+  deleteAccountButtonRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 24,
+    marginTop: 20,
+  },
+
+  deleteAccountCancelButton: {
+    width: 96,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#FFF6D1",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+
+  deleteAccountSubmitButton: {
+    width: 96,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#FFF0B3",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+
+  deleteAccountCancelText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#7A7A72",
+  },
+
+  deleteAccountSubmitText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#7A7A72",
+  },
 
   modeTabs: {
     flexDirection: "row",
@@ -758,12 +1366,14 @@ accountOptionText: {
     shadowRadius: 5,
     elevation: 5,
   },
+
   emptyArea: {
     alignItems: "center",
     justifyContent: "center",
     paddingTop: 80,
     gap: 12,
   },
+
   emptyText: {
     fontSize: 16,
     color: "#AAAAAA",
