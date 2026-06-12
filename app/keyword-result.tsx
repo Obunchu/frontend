@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router, useLocalSearchParams } from "expo-router";
-import { useState, useEffect, useCallback } from "react";
+import * as SecureStore from 'expo-secure-store';
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -12,7 +13,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import * as SecureStore from 'expo-secure-store';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -328,7 +328,7 @@ export default function KeywordResultScreen() {
       <View style={styles.bottomNav}>
         <NavButton icon="home-outline" active onPress={() => router.push("/home")} />
         <NavButton icon="location-outline" onPress={() => router.push("/map")} />
-        <NavButton icon="heart-outline" />
+        <NavButton icon="heart-outline" onPress={() => router.push("/bookmark")} />
       </View>
     </View>
   );

@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   Image,
   ScrollView,
@@ -188,7 +188,7 @@ export default function KeywordSearchScreen() {
       <View style={styles.bottomNav}>
         <NavButton icon="home-outline" active onPress={() => router.push("/home")} />
         <NavButton icon="location-outline" onPress={() => router.push("/map")} />
-        <NavButton icon="heart-outline" />
+        <NavButton icon="heart-outline" onPress={() => router.push("/bookmark")} />
       </View>
     </View>
   );
