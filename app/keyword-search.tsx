@@ -42,17 +42,17 @@ const regionKeywords = [
 ];
 
 export default function KeywordSearchScreen() {
-  const [selectedMoods, setSelectedMoods] = useState<string[]>(["신비로운"]);
-  const [selectedRegions, setSelectedRegions] = useState<string[]>(["충청북도"]);
+  const [selectedMoods, setSelectedMoods] = useState<string[]>(["평온한"]);
+  const [selectedRegions, setSelectedRegions] = useState<string[]>(["서울특별시"]);
   const [userId, setUserId] = useState("");
   const [nickname, setNickname] = useState("");
 
   useEffect(() => {
     const loadUserInfo = async () => {
-      const userId = await SecureStore.getItemAsync("user_id");
-      const nickname = await SecureStore.getItemAsync("nickname");
-      if (userId) setUserId(userId);
-      if (nickname) setNickname(nickname);
+      const savedUserId = await SecureStore.getItemAsync("user_id");
+      const savedNickname = await SecureStore.getItemAsync("nickname");
+      if (savedUserId) setUserId(savedUserId);
+      if (savedNickname) setNickname(savedNickname);
     };
     loadUserInfo();
   }, []);
@@ -95,10 +95,14 @@ export default function KeywordSearchScreen() {
 
           <Text style={styles.title}>키워드 검색</Text>
 
-          <View style={styles.profileArea}>
+          <TouchableOpacity
+            style={styles.profileArea}
+            onPress={() => router.push("/setting")}
+            activeOpacity={0.75}
+          >
             <Ionicons name="person-circle-outline" size={48} color="#263A56" />
-            <Text style={styles.profileName}>{nickname}님</Text>
-          </View>
+            <Text style={styles.profileName}>{nickname || "수정"}님</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.filterTitleRow}>
@@ -185,7 +189,6 @@ export default function KeywordSearchScreen() {
         <NavButton icon="home-outline" active onPress={() => router.push("/home")} />
         <NavButton icon="location-outline" onPress={() => router.push("/map")} />
         <NavButton icon="heart-outline" />
-        <NavButton icon="chatbubbles-outline" />
       </View>
     </View>
   );

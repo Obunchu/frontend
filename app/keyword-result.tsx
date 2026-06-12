@@ -46,14 +46,16 @@ export default function KeywordResultScreen() {
   const [nickname, setNickname] = useState("");
   const [likedPlaces, setLikedPlaces] = useState<Record<number, boolean>>({});
 
-  // 1. 사용자 정보 로드
+  // 1. 유저 정보 로드
   useEffect(() => {
     const loadUserInfo = async () => {
-      const storedUserId = await SecureStore.getItemAsync("user_id");
-      const storedNickname = await SecureStore.getItemAsync("nickname");
-      if (storedUserId) setUserId(storedUserId);
-      if (storedNickname) setNickname(storedNickname);
+      const savedUserId = await SecureStore.getItemAsync("user_id");
+      const savedNickname = await SecureStore.getItemAsync("nickname");
+
+      if (savedUserId) setUserId(savedUserId);
+      if (savedNickname) setNickname(savedNickname);
     };
+
     loadUserInfo();
   }, []);
 
@@ -62,7 +64,6 @@ export default function KeywordResultScreen() {
     setLoading(true);
     setError(null);
     try {
-      // 쿼리 스트링 안전하게 인코딩 처리
       const encodedMood = encodeURIComponent(mood || "");
       const encodedRegion = encodeURIComponent(region || "");
 
@@ -83,7 +84,6 @@ export default function KeywordResultScreen() {
 
       const data = await response.json();
       
-      // 백엔드가 객체 형태로 주든 배열 형태로 주든 완벽히 파싱하는 이중 방어막
       let placesData: Place[] = [];
       if (data && typeof data === "object") {
         if (Array.isArray(data.results)) {
@@ -210,33 +210,37 @@ export default function KeywordResultScreen() {
           />
 
           <TouchableOpacity style={styles.searchBox} onPress={() => router.back()}>
-            <Text style={styles.searchText} numberOfLines={1}>
-              #{mood ? mood.split(',')[0] : "키워드"}
-            </Text>
+            {mood ? (
+                mood.split(',').map((singleMood, index) => {
+                  const trimmedMood = singleMood.trim();
+                  if (!trimmedMood) return null;
+                  return (
+                    <Text key={index} style={styles.searchText}>
+                      #{trimmedMood}
+                    </Text>
+                  );
+                })
+              ) : (
+                <Text style={styles.searchText}>#키워드</Text>
+            )}
             <Ionicons name="search-outline" size={34} color="#6FA8DC" />
           </TouchableOpacity>
 
-          <View style={styles.profileArea}>
+          <TouchableOpacity
+            style={styles.profileArea}
+            onPress={() => router.push("/setting")}
+            activeOpacity={0.75}
+          >
             <Ionicons name="person-circle-outline" size={48} color="#263A56" />
-            <Text style={styles.profileName}>{nickname || "사용자"}님</Text>
-          </View>
+            <Text style={styles.profileName}>{nickname || "수정"}님</Text>
+          </TouchableOpacity>
         </View>
 
         {/* 로딩 인디케이터 */}
         {loading && (
-          <View style={styles.loadingBox}>
+          <View>
             <ActivityIndicator size="large" color="#F28C2E" />
-            <Text style={styles.loadingText}>조건에 맞는 여행지 탐색 중...</Text>
-          </View>
-        )}
-
-        {/* 에러 핸들링 */}
-        {error && !loading && (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>⚠️ {error}</Text>
-            <TouchableOpacity style={styles.retryButton} onPress={fetchResults}>
-              <Text style={styles.retryText}>다시 시도</Text>
-            </TouchableOpacity>
+            <Text>조건에 맞는 여행지 탐색 중...</Text>
           </View>
         )}
 
@@ -244,8 +248,8 @@ export default function KeywordResultScreen() {
         {!loading && !error && (
           <View style={styles.resultList}>
             {results.length === 0 ? (
-              <View style={styles.emptyBox}>
-                <Text style={styles.emptyText}>선택하신 조건에 맞는 여행지가 없습니다.</Text>
+              <View>
+                <Text>선택하신 조건에 맞는 여행지가 없습니다.</Text>
               </View>
             ) : (
               results.map((place) => (
@@ -257,7 +261,6 @@ export default function KeywordResultScreen() {
                       <Image
                         source={{ 
                           uri: place.firstimage,
-                          // [🔥 핵심 해결 포인트] TourAPI 서버 보안 우회용 User-Agent 헤더 강제 주입
                           headers: {
                             "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36"
                           }
@@ -322,11 +325,10 @@ export default function KeywordResultScreen() {
         )}
       </ScrollView>
 
-      {/* 하단 탭 네비게이션 */}
       <View style={styles.bottomNav}>
-        <NavButton icon="home-outline" onPress={() => router.push("/home")} />
-        <NavButton icon="location-outline" active onPress={() => router.push("/map")} />
-        <NavButton icon="heart-outline" onPress={() => router.push("/bookmark")} />
+        <NavButton icon="home-outline" active onPress={() => router.push("/home")} />
+        <NavButton icon="location-outline" onPress={() => router.push("/map")} />
+        <NavButton icon="heart-outline" />
       </View>
     </View>
   );
@@ -342,8 +344,8 @@ function NavButton({
   onPress?: () => void;
 }) {
   return (
-    <TouchableOpacity 
-      style={[styles.navButton, active && styles.activeNavButton]} 
+    <TouchableOpacity
+      style={[styles.navButton, active && styles.activeNavButton]}
       onPress={onPress}
     >
       <Ionicons name={icon} size={36} color="#F28C2E" />
@@ -358,8 +360,8 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingTop: 70,
-    paddingHorizontal: 28,
-    paddingBottom: 120,
+    paddingHorizontal: 22,
+    paddingBottom: 130,
   },
   header: {
     flexDirection: "row",
@@ -384,7 +386,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   searchText: {
-    fontSize: 20,
+    fontSize: 15,
     fontWeight: "800",
     color: "#222222",
     maxWidth: "80%",
@@ -397,45 +399,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#333333",
     marginTop: 2,
-  },
-  loadingBox: {
-    marginTop: 80,
-    alignItems: "center",
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#555",
-  },
-  errorBox: {
-    marginTop: 60,
-    alignItems: "center",
-  },
-  errorText: {
-    fontSize: 14,
-    color: "#c0392b",
-    textAlign: "center",
-  },
-  retryButton: {
-    marginTop: 16,
-    backgroundColor: "#F28C2E",
-    borderRadius: 20,
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-  },
-  retryText: {
-    color: "#fff",
-    fontWeight: "700",
-  },
-  emptyBox: {
-    marginTop: 80,
-    alignItems: "center",
-  },
-  emptyText: {
-    fontSize: 16,
-    color: "#777777",
-    fontWeight: "600",
   },
   resultList: {
     marginTop: 28,
