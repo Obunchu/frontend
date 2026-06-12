@@ -46,8 +46,8 @@ const regionKeywords = [
 ];
 
 export default function KeywordSearchScreen() {
-  const [selectedMoods, setSelectedMoods] = useState<string[]>(["신비로운"]);
-  const [selectedRegions, setSelectedRegions] = useState<string[]>(["충청북도"]);
+  const [selectedMoods, setSelectedMoods] = useState<string[]>([]);
+  const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
 
   const [profileMenuVisible, setProfileMenuVisible] = useState(false);
   const [profileEditMenuVisible, setProfileEditMenuVisible] = useState(false);

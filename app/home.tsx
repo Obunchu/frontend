@@ -530,8 +530,7 @@ export default function HomeScreen() {
             activeOpacity={1}
           />
 
-          {!profileEditMenuVisible && !accountMenuVisible && (
-            <View style={styles.profileMenu}>
+          <View style={styles.profileMenu}>
               <View style={styles.profileMenuHeader}>
                 <View style={styles.menuIconBox}>
                   {profileImageUri ? (
@@ -608,7 +607,6 @@ export default function HomeScreen() {
                 <Text style={styles.profileMenuText}>사용 가이드</Text>
               </TouchableOpacity>
             </View>
-          )}
 
           {profileEditMenuVisible && (
             <View style={styles.profileEditMenu}>
