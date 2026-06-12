@@ -30,92 +30,6 @@ type Place = {
 };
 
 
-const PASTEL_MAP_STYLE = [
-  { elementType: "geometry", stylers: [{ color: "#f5f0e8" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#8b7355" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#fdf8f0" }] },
-  {
-    featureType: "administrative",
-    elementType: "geometry.stroke",
-    stylers: [{ color: "#d4c4a8" }],
-  },
-  {
-    featureType: "administrative.land_parcel",
-    elementType: "labels.text.fill",
-    stylers: [{ color: "#b8a898" }],
-  },
-  {
-    featureType: "landscape.natural",
-    elementType: "geometry",
-    stylers: [{ color: "#e8f0d8" }],
-  },
-  {
-    featureType: "poi",
-    elementType: "geometry",
-    stylers: [{ color: "#dcecd4" }],
-  },
-  {
-    featureType: "poi",
-    elementType: "labels.text.fill",
-    stylers: [{ color: "#8b9e78" }],
-  },
-  {
-    featureType: "poi.park",
-    elementType: "geometry.fill",
-    stylers: [{ color: "#c8e0b4" }],
-  },
-  {
-    featureType: "poi.park",
-    elementType: "labels.text.fill",
-    stylers: [{ color: "#7a9e68" }],
-  },
-  {
-    featureType: "road",
-    elementType: "geometry",
-    stylers: [{ color: "#ffffff" }],
-  },
-  {
-    featureType: "road",
-    elementType: "geometry.stroke",
-    stylers: [{ color: "#e8ddd0" }],
-  },
-  {
-    featureType: "road.highway",
-    elementType: "geometry",
-    stylers: [{ color: "#fce8c8" }],
-  },
-  {
-    featureType: "road.highway",
-    elementType: "geometry.stroke",
-    stylers: [{ color: "#f0d4a8" }],
-  },
-  {
-    featureType: "road.highway",
-    elementType: "labels.text.fill",
-    stylers: [{ color: "#a0845c" }],
-  },
-  {
-    featureType: "transit",
-    elementType: "geometry",
-    stylers: [{ color: "#e8e0d4" }],
-  },
-  {
-    featureType: "transit.station",
-    elementType: "labels.text.fill",
-    stylers: [{ color: "#a09080" }],
-  },
-  {
-    featureType: "water",
-    elementType: "geometry.fill",
-    stylers: [{ color: "#b8d8e8" }],
-  },
-  {
-    featureType: "water",
-    elementType: "labels.text.fill",
-    stylers: [{ color: "#7098b0" }],
-  },
-];
-
 export default function MapScreen() {
   const mapRef = useRef<MapView | null>(null);
   const [region, setRegion] = useState<Region | null>(null);
@@ -167,7 +81,7 @@ export default function MapScreen() {
 
       // 근처 장소 불러오기
       const res = await fetch(
-        `${process.env.EXPO_PUBLIC_API_URL}/places/nearby?lat=${latitude}&lng=${longitude}&radius_km=1.0`
+        `${process.env.EXPO_PUBLIC_API_URL}/places/nearby?lat=${latitude}&lng=${longitude}&radius_km=2.0`
       );
       
       const data = await res.json();
@@ -216,15 +130,6 @@ export default function MapScreen() {
           style={styles.logo}
           resizeMode="contain"
         />
-
-        <View style={styles.searchBox}>
-          <Ionicons name="search-outline" size={20} color="#A8A8A8" />
-          <TextInput
-            placeholder="Search"
-            placeholderTextColor="#A8A8A8"
-            style={styles.searchInput}
-          />
-        </View>
 
         <TouchableOpacity
           style={styles.profileArea}
@@ -461,34 +366,15 @@ const styles = StyleSheet.create({
   topArea: {
     paddingTop: 45,
     paddingHorizontal: 28,
+    marginBottom: 25,
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
+    justifyContent: "space-between",
   },
 
   logo: {
     width: 95,
     height: 75,
-  },
-
-  searchBox: {
-    flex: 1,
-    height: 44,
-    marginHorizontal: 10,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: "#D2D2D2",
-    backgroundColor: "#FFFFFF",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 14,
-  },
-
-  searchInput: {
-    flex: 1,
-    marginLeft: 8,
-    fontSize: 16,
-    color: "#333333",
   },
 
   profileArea: {
@@ -769,3 +655,89 @@ accountOptionText: {
     width: "100%",
   },
 });
+
+const PASTEL_MAP_STYLE = [
+  { elementType: "geometry", stylers: [{ color: "#f5f0e8" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#8b7355" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#fdf8f0" }] },
+  {
+    featureType: "administrative",
+    elementType: "geometry.stroke",
+    stylers: [{ color: "#d4c4a8" }],
+  },
+  {
+    featureType: "administrative.land_parcel",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#b8a898" }],
+  },
+  {
+    featureType: "landscape.natural",
+    elementType: "geometry",
+    stylers: [{ color: "#e8f0d8" }],
+  },
+  {
+    featureType: "poi",
+    elementType: "geometry",
+    stylers: [{ color: "#dcecd4" }],
+  },
+  {
+    featureType: "poi",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#8b9e78" }],
+  },
+  {
+    featureType: "poi.park",
+    elementType: "geometry.fill",
+    stylers: [{ color: "#c8e0b4" }],
+  },
+  {
+    featureType: "poi.park",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#7a9e68" }],
+  },
+  {
+    featureType: "road",
+    elementType: "geometry",
+    stylers: [{ color: "#ffffff" }],
+  },
+  {
+    featureType: "road",
+    elementType: "geometry.stroke",
+    stylers: [{ color: "#e8ddd0" }],
+  },
+  {
+    featureType: "road.highway",
+    elementType: "geometry",
+    stylers: [{ color: "#fce8c8" }],
+  },
+  {
+    featureType: "road.highway",
+    elementType: "geometry.stroke",
+    stylers: [{ color: "#f0d4a8" }],
+  },
+  {
+    featureType: "road.highway",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#a0845c" }],
+  },
+  {
+    featureType: "transit",
+    elementType: "geometry",
+    stylers: [{ color: "#e8e0d4" }],
+  },
+  {
+    featureType: "transit.station",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#a09080" }],
+  },
+  {
+    featureType: "water",
+    elementType: "geometry.fill",
+    stylers: [{ color: "#b8d8e8" }],
+  },
+  {
+    featureType: "water",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#7098b0" }],
+  },
+];

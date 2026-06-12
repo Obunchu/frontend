@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -28,9 +29,12 @@ type Place = {
   secondary_mood: string;
   caption: string;
   content_id: number;
+  map_lat: number;
+  map_lng: number;
   similarity: number;
   firstimage?: string | null;
   overview?: string | null;
+  addr1?: string | null;
 };
 
 export default function ImageSearchScreen() {
@@ -41,7 +45,7 @@ export default function ImageSearchScreen() {
   const [error, setError]     = useState<string | null>(null);
   const [userId, setUserId] = useState("");
   const [nickname, setNickname] = useState("");
-  const [likedMap, setLikedMap] = useState<Record<number, boolean>>({});
+  const [likedPlaces, setLikedPlaces] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     const loadUserInfo = async () => {
@@ -81,6 +85,32 @@ export default function ImageSearchScreen() {
 
       const data = await response.json();
       setPlaces(data.results);  // 백엔드가 title, firstimage, overview 다 포함해서 내려줌
+      
+      if (userId) {
+        const likedStatus: Record<number, boolean> = {};
+
+        for (const place of data.results) {
+          const res = await fetch(
+            `${process.env.EXPO_PUBLIC_API_URL}/bookmarks/check`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                user_id: userId,
+                content_id: place.content_id,
+              }),
+            }
+          );
+
+          const result = await res.json();
+
+          likedStatus[place.id] = result.is_bookmarked;
+        }
+
+        setLikedPlaces(likedStatus);
+      }
 
     } catch (e: any) {
       setError(e.message ?? "알 수 없는 오류");
@@ -91,25 +121,81 @@ export default function ImageSearchScreen() {
   }
 
   const handleBookmark = async (place: Place) => {
-  if (!userId) return;
+    if (!userId) return;
 
-  const isLiked = likedMap[place.id];
+    const isLiked = likedPlaces[place.id];
 
-  setLikedMap((prev) => ({
-    ...prev,
-    [place.id]: !isLiked,
-  }));
+    if (isLiked) {
+      await fetch(
+        `${process.env.EXPO_PUBLIC_API_URL}/bookmarks/remove`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            user_id: userId,
+            content_id: place.content_id,
+          }),
+        }
+      );
+    } else {
+      await fetch(
+        `${process.env.EXPO_PUBLIC_API_URL}/bookmarks/add`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            user_id: userId,
+            content_id: place.content_id,
+            place_name: place.place_name,
+          }),
+        }
+      );
+    }
 
-  await fetch(`${process.env.EXPO_PUBLIC_API_URL}/bookmarks/add`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      user_id: userId,
-      content_id: place.content_id,
-      place_name: place.place_name,
-    }),
-  });
-};
+    setLikedPlaces((prev) => ({
+      ...prev,
+      [place.id]: !isLiked,
+    }));
+  };
+
+  const refreshBookmarks = async () => {
+    if (!userId) return;
+
+    const likedStatus: Record<number, boolean> = {};
+
+    for (const place of places) {
+      const res = await fetch(
+        `${process.env.EXPO_PUBLIC_API_URL}/bookmarks/check`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            user_id: userId,
+            content_id: place.content_id,
+          }),
+        }
+      );
+
+      const result = await res.json();
+
+      likedStatus[place.id] = result.is_bookmarked;
+    }
+
+    setLikedPlaces(likedStatus);
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshBookmarks();
+      return () => {};
+    }, [userId, places])
+  );
 
   return (
     <View style={styles.container}>
@@ -166,7 +252,7 @@ export default function ImageSearchScreen() {
 
             {places.map((place, index) => (
               <TouchableOpacity key={place.id} style={styles.listCard}
-                onPress={() => router.push({pathname: "/detail", params: { place: JSON.stringify(place),
+                onPress={() => router.push({pathname: "/detail", params: { content_id: place.content_id
       },
     })
   }
@@ -223,10 +309,10 @@ export default function ImageSearchScreen() {
                 <View style={styles.rightArea}>
                   <TouchableOpacity onPress={() => handleBookmark(place)}>
                     <Ionicons
-  name={likedMap[place.id] ? "heart" : "heart-outline"}
-  size={34}
-  color={likedMap[place.id] ? "#FF4D6D" : "#FFD75E"}
-/>
+                      name={likedPlaces[place.id] ? "heart" : "heart-outline"}
+                      size={34}
+                      color={likedPlaces[place.id] ? "#FF4D6D" : "#FFD75E"}
+                    />
                   </TouchableOpacity>
                   <Ionicons
                     name="chevron-forward"

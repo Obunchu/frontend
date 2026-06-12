@@ -95,12 +95,14 @@ export default function HomeScreen() {
     setActiveIndex(index);
   };
 
-  const goToMoodResult = (mood: string) => {
+  const goToRecommendResult = (localImageModule: any) => {
+    const asset = Image.resolveAssetSource(localImageModule);
+    const imageUri = asset ? asset.uri : "";
+
     router.push({
-      pathname: "/keyword-result",
+      pathname: "/image-search",
       params: {
-        mood,
-        region: "국내",
+        imageUri,
       },
     });
   };
@@ -180,16 +182,15 @@ export default function HomeScreen() {
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={styles.overseasCard}
-                onPress={() => goToMoodResult(item.mood)}
+                onPress={() => goToRecommendResult(item.localImage)}
               >
                 <View style={styles.overseasImagePlaceholder}>
-  <Image
-    source={item.localImage}
-    style={styles.overseasImage}
-    resizeMode="cover"
-  />
-</View>
-
+                  <Image
+                    source={item.localImage}
+                    style={styles.overseasImage}
+                    resizeMode="cover"
+                  />
+                </View>
                 <View style={styles.arrowButton}>
                   <Ionicons name="arrow-forward" size={34} color="#FFFFFF" />
                 </View>

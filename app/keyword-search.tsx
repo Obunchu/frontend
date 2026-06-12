@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Image,
   ScrollView,
@@ -9,6 +9,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+import * as SecureStore from 'expo-secure-store';
 
 const moodKeywords = [
   "평온한",
@@ -42,6 +44,18 @@ const regionKeywords = [
 export default function KeywordSearchScreen() {
   const [selectedMoods, setSelectedMoods] = useState<string[]>(["신비로운"]);
   const [selectedRegions, setSelectedRegions] = useState<string[]>(["충청북도"]);
+  const [userId, setUserId] = useState("");
+  const [nickname, setNickname] = useState("");
+
+  useEffect(() => {
+    const loadUserInfo = async () => {
+      const userId = await SecureStore.getItemAsync("user_id");
+      const nickname = await SecureStore.getItemAsync("nickname");
+      if (userId) setUserId(userId);
+      if (nickname) setNickname(nickname);
+    };
+    loadUserInfo();
+  }, []);
 
   const toggleMood = (keyword: string) => {
     setSelectedMoods((prev) =>
@@ -83,7 +97,7 @@ export default function KeywordSearchScreen() {
 
           <View style={styles.profileArea}>
             <Ionicons name="person-circle-outline" size={48} color="#263A56" />
-            <Text style={styles.profileName}>수정님</Text>
+            <Text style={styles.profileName}>{nickname}님</Text>
           </View>
         </View>
 
